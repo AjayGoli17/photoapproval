@@ -149,7 +149,7 @@
               </div>
             </div>
             <div class="metric-value" id="kpiActiveProjects">8</div>
-            <div class="metric-sub">Across 6 wedding & portrait clients</div>
+            <div class="metric-sub" id="kpiActiveProjectsSub">Across 6 wedding & portrait clients</div>
           </div>
 
           <div class="metric-card accent-blue">
@@ -160,7 +160,7 @@
               </div>
             </div>
             <div class="metric-value" id="kpiUpcomingShoots">3</div>
-            <div class="metric-sub">Next: Nov 12 (Haveli Heritage)</div>
+            <div class="metric-sub" id="kpiUpcomingShootsSub">Next: Nov 12 (Haveli Heritage)</div>
           </div>
 
           <div class="metric-card accent-amber">
@@ -171,7 +171,7 @@
               </div>
             </div>
             <div class="metric-value" id="kpiOutstandingAmount">₹5,00,000</div>
-            <div class="metric-sub">From 5 pending installments</div>
+            <div class="metric-sub" id="kpiOutstandingAmountSub">From 5 pending installments</div>
           </div>
 
           <div class="metric-card accent-purple">
@@ -182,8 +182,13 @@
               </div>
             </div>
             <div class="metric-value" id="kpiAwaitingApproval">2</div>
-            <div class="metric-sub">Review & Revision queue</div>
+            <div class="metric-sub" id="kpiAwaitingApprovalSub">Review & Revision queue</div>
           </div>
+        </div>
+
+        <!-- Pipeline Action Spotlight: Projects Awaiting Action -->
+        <div id="dashboardPipelineSpotlight">
+          <!-- Rendered dynamically via renderDashboardSpotlight() in JS -->
         </div>
 
         <!-- 2 Column Section: Recent Projects & Tasks -->
@@ -200,8 +205,9 @@
                     <th>Project & Client</th>
                     <th>Event Date</th>
                     <th>Stage</th>
+                    <th>Milestone Status</th>
                     <th>Balance</th>
-                    <th>Action</th>
+                    <th style="text-align:right;">Action</th>
                   </tr>
                 </thead>
                 <tbody id="tbodyDashboardProjects">
@@ -486,6 +492,11 @@
               <div class="portal-stepper" id="portalStepper">
                 <!-- Populated dynamically via JS -->
               </div>
+
+              <!-- Friendly Client Welcome & Instructions Card -->
+              <div class="portal-welcome-card" id="portalWelcomeCard">
+                <!-- Dynamically populated in JS -->
+              </div>
             </div>
           </div>
 
@@ -507,7 +518,10 @@
                 </button>
               </div>
 
-              <div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <button class="btn btn-secondary btn-sm" onclick="copyClientPortalLink(appState.activeProjectId)" title="Copy simulated client approval link">
+                  🔗 Share Link
+                </button>
                 <button class="btn btn-secondary btn-sm" onclick="switchAppMode('studio')">← Back to Studio View</button>
               </div>
             </div>
@@ -516,6 +530,9 @@
           <div class="portal-main-container">
             <!-- PORTAL TAB 1: ALBUM APPROVAL VIEWER -->
             <div class="portal-tab-content active" id="portalContentAlbum">
+              <!-- Approved Celebration Banner (Shown when stage is Approved / Delivered) -->
+              <div id="portalApprovedCelebrationBanner" style="display:none;"></div>
+
               <div class="album-approval-section">
                 <!-- Control bar -->
                 <div class="album-control-bar">
@@ -599,11 +616,14 @@
 
             <!-- PORTAL TAB 2: PHOTO GALLERY PREVIEW -->
             <div class="portal-tab-content" id="portalContentGallery" style="display: none;">
+              <!-- Photo Selection Confirmed Banner -->
+              <div id="portalGalleryConfirmedBanner" style="display:none; margin-bottom:18px;"></div>
+
               <div class="card">
                 <div class="filter-bar" style="flex-wrap:wrap; gap:12px;">
                   <div class="screen-title-area">
                     <div class="card-title">Curated Photograph Highlights</div>
-                    <p>Click photos to enlarge. Select favorite photographs for your archival album curation.</p>
+                    <p>Click any photo to view full resolution. Pick your favorite images to curate into the fine-art album layout.</p>
                   </div>
                   <div class="filter-pills" id="portalGalleryFilterPills">
                     <!-- Populated dynamically via JS -->
@@ -611,11 +631,11 @@
                 </div>
 
                 <div class="gallery-selection-bar" id="portalSelectionBar">
-                  <div style="display:flex; align-items:center; gap:10px;">
+                  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                     <span style="font-weight:600; font-size:13px; color:var(--text-primary);" id="portalSelectedCountText">0 Photos Selected</span>
                     <span class="badge badge-scheduled" id="portalSelectionStatusBadge" style="font-size:10.5px;">Selection in Progress</span>
                   </div>
-                  <div style="display:flex; gap:8px;">
+                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button class="btn btn-secondary btn-sm" id="btnFilterSelectedOnly" onclick="toggleFilterSelectedPhotos()">
                       ★ View Selected Only
                     </button>
@@ -1178,6 +1198,48 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="closeModal('modalBulkDelete')">Cancel</button>
         <button type="button" class="btn btn-danger-solid" id="btnConfirmBulkDeleteAction" disabled style="opacity:0.4; cursor:not-allowed;">Delete All Records</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Share Client Approval Link -->
+  <div class="modal-overlay" id="modalShareClientLink">
+    <div class="modal-container" style="max-width: 540px;">
+      <div class="modal-header">
+        <h3 id="shareModalTitle" style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:18px;">🔗</span>
+          <span>Share Client Approval Link</span>
+        </h3>
+        <button class="modal-close-btn" onclick="closeModal('modalShareClientLink')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;" id="shareModalDescription">
+          Share this private link with your client so they can browse their proof gallery, pick favorite photos, review album spreads, and authorize final print fabrication.
+        </p>
+
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Direct Client URL</span>
+            <span style="font-size:11px; color:var(--accent-bronze); font-weight:600;">Simulated Demo Link</span>
+          </label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" class="form-control" id="inputShareClientUrl" readonly style="font-size:12px; font-family:monospace; background:#faf8f4; color:var(--text-primary);" onclick="this.select()">
+            <button class="btn btn-primary" id="btnModalCopyLink" onclick="copyShareModalUrl()" style="white-space:nowrap; padding:8px 14px;">
+              Copy Link
+            </button>
+          </div>
+        </div>
+
+        <div style="background:#faf8f5; border:1px solid var(--border-color); border-radius:8px; padding:12px 14px; font-size:12px; color:var(--text-secondary); line-height:1.45;">
+          <strong style="color:var(--text-primary); display:block; margin-bottom:2px;">💡 Demo Simulation Note:</strong>
+          Opening this link in any browser tab will immediately launch the client-facing approval portal for this specific project. LocalStorage-persisted sample data is maintained.
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalShareClientLink')">Close</button>
+        <button type="button" class="btn btn-primary" id="btnLaunchPortalDirect" onclick="launchClientPortalDirect()">
+          Launch Client View Now →
+        </button>
       </div>
     </div>
   </div>

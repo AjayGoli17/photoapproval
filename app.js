@@ -441,6 +441,35 @@ const DEFAULT_DATA = {
       notes: []
     },
     {
+      id: "s301",
+      projectId: "p3",
+      title: "Glass House Conservatory Portraits",
+      badge: "Spread 01 of 03",
+      leftImg: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=900&auto=format&fit=crop",
+      rightImg: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=900&auto=format&fit=crop",
+      notes: [
+        { id: "n301_1", author: "Kavya (Client)", text: "Could we center the portrait composition slightly?", resolved: false, time: "Oct 08, 2026" }
+      ]
+    },
+    {
+      id: "s302",
+      projectId: "p3",
+      title: "Cocktail Evening & Sitar Recital",
+      badge: "Spread 02 of 03",
+      leftImg: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?q=80&w=900&auto=format&fit=crop",
+      rightImg: "https://images.unsplash.com/photo-1546804784-896d0dca3805?q=80&w=900&auto=format&fit=crop",
+      notes: []
+    },
+    {
+      id: "s303",
+      projectId: "p3",
+      title: "Starlight Lawn Reception",
+      badge: "Spread 03 of 03",
+      leftImg: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=900&auto=format&fit=crop",
+      rightImg: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=900&auto=format&fit=crop",
+      notes: []
+    },
+    {
       id: "s501",
       projectId: "p5",
       title: "South Goa Sunset Shoreline Romance",
@@ -496,8 +525,10 @@ const DEFAULT_DATA = {
 // --- App State ---
 let appState = {
   activeView: 'dashboard',
+  activeClientId: 'c1',  // Selected client for Portal
   activeProjectId: 'p1', // Selected project for Workspace & Portal
   activeSpreadIndex: 3,  // Spread 4 by default for Rahul & Priya
+  activePortalTab: 'album',
   currentMonth: new Date(2026, 9, 1), // Oct 2026
   clientFilter: 'all',
   projectFilter: 'all',
@@ -517,10 +548,32 @@ let appState = {
 let pendingDeleteAction = null;
 let pendingBulkDeleteAction = null;
 
-// ================= PROJECT HELPERS & DATA ARCHITECTURE =================
+// ================= CLIENT & PROJECT HELPERS & DATA ARCHITECTURE =================
+function getClient(clientId) {
+  if (!clientId) return null;
+  return (appState.clients || []).find(c => c.id === clientId) || null;
+}
+
+function getClientByProject(project) {
+  if (!project) return null;
+  if (project.clientId) {
+    const byId = getClient(project.clientId);
+    if (byId) return byId;
+  }
+  if (project.clientName) {
+    return (appState.clients || []).find(c => c.name === project.clientName) || null;
+  }
+  return null;
+}
+
+function getClientProjects(clientId) {
+  if (!clientId) return [];
+  return (appState.projects || []).filter(p => p.clientId === clientId);
+}
+
 function getProject(projectId) {
   if (!projectId) return null;
-  return appState.projects.find(p => p.id === projectId) || null;
+  return (appState.projects || []).find(p => p.id === projectId) || null;
 }
 
 function calculateWorkspaceProgress(project) {
@@ -634,17 +687,167 @@ function openProjectWorkspace(projectId) {
   const p = getProject(projectId);
   if (p) {
     appState.activeProjectId = projectId;
+    if (p.clientId) {
+      appState.activeClientId = p.clientId;
+    }
     navigateTo('workspace');
+  } else {
+    showToast(`Project record "${projectId}" could not be located.`);
   }
 }
 
-function openProjectPortal(projectId) {
+function openClientPortal(clientId, projectId, initialTab) {
+  let client = getClient(clientId);
+  let project = null;
+
+  if (!client && clientId) {
+    project = getProject(clientId);
+    if (project) {
+      client = getClient(project.clientId);
+    }
+  }
+
+  if (!client && projectId) {
+    project = getProject(projectId);
+    if (project) {
+      client = getClient(project.clientId);
+    }
+  }
+
+  if (!client) {
+    client = getClient(appState.activeClientId) || (appState.clients.length > 0 ? appState.clients[0] : null);
+  }
+
+  if (!client) {
+    showToast("No clients found in the application.");
+    return;
+  }
+
+  appState.activeClientId = client.id;
+  const clientProjects = getClientProjects(client.id);
+
+  if (projectId) {
+    project = clientProjects.find(p => p.id === projectId) || getProject(projectId);
+  }
+
+  if (!project && clientProjects.length > 0) {
+    project = clientProjects[0];
+  }
+
+  if (project) {
+    appState.activeProjectId = project.id;
+  } else {
+    appState.activeProjectId = null;
+  }
+
+  appState.activeSpreadIndex = 0;
+  navigateTo('portal');
+
+  if (initialTab) {
+    switchPortalTab(initialTab);
+  }
+}
+
+function openProjectPortal(projectId, initialTab) {
   const p = getProject(projectId);
   if (p) {
-    appState.activeProjectId = projectId;
-    appState.activeSpreadIndex = 0;
-    navigateTo('portal');
+    openClientPortal(p.clientId, p.id, initialTab);
+  } else {
+    showToast(`Project record "${projectId}" could not be located.`);
   }
+}
+
+// ================= SIMULATED SHAREABLE CLIENT LINK =================
+function getClientPortalShareUrl(projectId) {
+  const p = getProject(projectId) || getProject(appState.activeProjectId) || appState.projects[0];
+  if (!p) return '';
+  const origin = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null') ? window.location.origin : '';
+  const pathname = (typeof window !== 'undefined' && window.location && window.location.pathname) ? window.location.pathname : '';
+  return `${origin}${pathname}?client=${p.clientId}&project=${p.id}&view=portal`;
+}
+
+function fallbackCopyTextToClipboard(text) {
+  if (typeof document === 'undefined') return false;
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.position = "fixed";
+  textArea.style.top = "-9999px";
+  textArea.style.left = "-9999px";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch (err) {
+    ok = false;
+  }
+  document.body.removeChild(textArea);
+  return ok;
+}
+
+function showShareLinkModal(project, url) {
+  const input = document.getElementById('inputShareClientUrl');
+  if (input) {
+    input.value = url;
+  }
+  const title = document.getElementById('shareModalTitle');
+  if (title) {
+    title.innerHTML = `<span>🔗</span> <span>Client Approval Link: ${project.clientName}</span>`;
+  }
+  const desc = document.getElementById('shareModalDescription');
+  if (desc) {
+    desc.innerHTML = `Share this private link for <strong>${project.title}</strong> (${project.clientName}). Clients can review their proof gallery, pick favorite images, flip through album spreads, leave change requests, and sign off for fine-art printing.`;
+  }
+  openModal('modalShareClientLink');
+}
+
+function copyClientPortalLink(projectId) {
+  const p = getProject(projectId) || getProject(appState.activeProjectId) || appState.projects[0];
+  if (!p) {
+    showToast("No active project available to share.");
+    return;
+  }
+
+  const shareUrl = getClientPortalShareUrl(p.id);
+  showShareLinkModal(p, shareUrl);
+
+  // Attempt clipboard copy
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      showToast(`✓ Client Approval Link Copied to Clipboard!`);
+    }).catch(() => {
+      fallbackCopyTextToClipboard(shareUrl);
+      showToast(`✓ Client Approval Link Ready!`);
+    });
+  } else {
+    fallbackCopyTextToClipboard(shareUrl);
+    showToast(`✓ Client Approval Link Ready!`);
+  }
+}
+
+function copyShareModalUrl() {
+  const input = document.getElementById('inputShareClientUrl');
+  if (!input) return;
+  const url = input.value;
+  input.select();
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(url).then(() => {
+      showToast(`✓ Copied link to clipboard!`);
+    }).catch(() => {
+      fallbackCopyTextToClipboard(url);
+      showToast(`✓ Copied link to clipboard!`);
+    });
+  } else {
+    fallbackCopyTextToClipboard(url);
+    showToast(`✓ Copied link to clipboard!`);
+  }
+}
+
+function launchClientPortalDirect() {
+  closeModal('modalShareClientLink');
+  openClientPortal(appState.activeClientId, appState.activeProjectId);
 }
 
 // ================= INITIALIZATION & SAFE MIGRATION =================
@@ -655,6 +858,32 @@ function initApp() {
   populateTaskProjectSelectOptions();
   renderAllViews();
 
+  // Handle simulated shareable client link via query parameter or URL hash
+  if (typeof window !== 'undefined' && window.location) {
+    const urlParams = new URLSearchParams(window.location.search || '');
+    let requestedClient = urlParams.get('client') || urlParams.get('clientId');
+    let requestedProject = urlParams.get('project') || urlParams.get('portalProject') || urlParams.get('projectId');
+    let requestedTab = urlParams.get('tab') || 'album';
+
+    if (!requestedClient && !requestedProject && window.location.hash) {
+      const hashStr = window.location.hash.replace(/^#/, '');
+      if (hashStr.includes('client=') || hashStr.includes('project=')) {
+        const hashParams = new URLSearchParams(hashStr.includes('?') ? hashStr.split('?')[1] : hashStr);
+        requestedClient = hashParams.get('client') || hashParams.get('clientId');
+        requestedProject = hashParams.get('project') || hashParams.get('portalProject');
+        requestedTab = hashParams.get('tab') || 'album';
+      }
+    }
+
+    if (requestedClient || requestedProject) {
+      openClientPortal(requestedClient, requestedProject, requestedTab);
+      const c = getClient(appState.activeClientId);
+      if (c) {
+        showToast(`✨ Welcome! Loaded private client approval portal for ${c.name}.`);
+      }
+    }
+  }
+
   // Keyboard navigation & Shortcuts
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -664,7 +893,7 @@ function initApp() {
       pendingBulkDeleteAction = null;
     } else if (appState.activeView === 'portal') {
       const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-      if (activeTag !== 'input' && activeTag !== 'textarea') {
+      if (activeTag !== 'input' && activeTag !== 'textarea' && activeTag !== 'select') {
         if (e.key === 'ArrowLeft') {
           e.preventDefault();
           navigateSpread(-1);
@@ -706,6 +935,13 @@ function migrateData(parsed) {
     }
     return spread;
   });
+
+  // Ensure default spreads for p3 are present if p3 has no spreads
+  const p3Spreads = albumSpreads.filter(s => s.projectId === 'p3');
+  if (p3Spreads.length === 0) {
+    const defaultP3Spreads = DEFAULT_DATA.albumSpreads.filter(s => s.projectId === 'p3');
+    albumSpreads.push(...JSON.parse(JSON.stringify(defaultP3Spreads)));
+  }
 
   // Portal gallery migration — assign projectId: 'p1' and valid IDs to unassigned photos
   let portalGallery = Array.isArray(parsed.portalGallery) ? parsed.portalGallery : JSON.parse(JSON.stringify(DEFAULT_DATA.portalGallery));
@@ -771,9 +1007,19 @@ function loadData() {
       appState.albumSpreads = migrated.albumSpreads;
       appState.portalGallery = migrated.portalGallery;
 
+      // Validate activeClientId
+      if (parsed.activeClientId && appState.clients.some(c => c.id === parsed.activeClientId)) {
+        appState.activeClientId = parsed.activeClientId;
+      } else {
+        appState.activeClientId = appState.clients[0]?.id || 'c1';
+      }
+
       // Validate activeProjectId
-      if (!appState.projects.some(p => p.id === appState.activeProjectId)) {
-        appState.activeProjectId = appState.projects[0]?.id || null;
+      if (parsed.activeProjectId && appState.projects.some(p => p.id === parsed.activeProjectId)) {
+        appState.activeProjectId = parsed.activeProjectId;
+      } else {
+        const clientProjects = getClientProjects(appState.activeClientId);
+        appState.activeProjectId = clientProjects[0]?.id || appState.projects[0]?.id || null;
       }
       return;
     } catch (e) {
@@ -789,6 +1035,7 @@ function loadData() {
   appState.calendarEvents = defaultClone.calendarEvents;
   appState.albumSpreads = defaultClone.albumSpreads;
   appState.portalGallery = defaultClone.portalGallery;
+  appState.activeClientId = appState.clients[0]?.id || 'c1';
   appState.activeProjectId = appState.projects[0]?.id || 'p1';
   saveData();
 }
@@ -796,6 +1043,8 @@ function loadData() {
 function saveData() {
   const payload = {
     schemaVersion: 2,
+    activeClientId: appState.activeClientId,
+    activeProjectId: appState.activeProjectId,
     clients: appState.clients,
     projects: appState.projects,
     tasks: appState.tasks,
@@ -810,6 +1059,7 @@ function resetDemoDataPrompt() {
   if (confirm("Reset demo data to initial prototype state? Any newly added clients, payments, tasks, or edits will be restored to defaults.")) {
     localStorage.removeItem('studioflow_data_v1');
     loadData();
+    appState.activeClientId = 'c1';
     appState.activeProjectId = 'p1';
     appState.activeSpreadIndex = 3;
     populateClientSelectOptions();
@@ -869,7 +1119,15 @@ function navigateTo(viewId) {
   const btnStudio = document.getElementById('btnModeStudio');
   const btnClient = document.getElementById('btnModeClient');
   if (btnStudio) btnStudio.classList.toggle('active', !isClientView);
-  if (btnClient) btnClient.classList.toggle('active', isClientView);
+  if (btnClient) {
+    btnClient.classList.toggle('active', isClientView);
+    const currClient = getClient(appState.activeClientId) || (getProject(appState.activeProjectId) ? getClient(getProject(appState.activeProjectId).clientId) : null);
+    const cName = currClient ? currClient.name.split('&')[0].trim() : 'Client';
+    btnClient.innerHTML = `
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Client View: ${cName}
+    `;
+  }
 
   // Close mobile sidebar if open
   closeMobileSidebar();
@@ -902,16 +1160,14 @@ function closeMobileSidebar() {
 
 function switchAppMode(mode) {
   if (mode === 'client') {
-    if (!appState.activeProjectId && appState.projects.length > 0) {
-      appState.activeProjectId = appState.projects[0].id;
-    }
-    navigateTo('portal');
+    openClientPortal(appState.activeClientId, appState.activeProjectId);
   } else {
     navigateTo('dashboard');
   }
 }
 
 function switchPortalTab(tabName) {
+  appState.activePortalTab = tabName;
   document.querySelectorAll('.portal-tab').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.portal-tab-content').forEach(c => c.style.display = 'none');
 
@@ -950,66 +1206,151 @@ function renderAllViews() {
 }
 
 function updateBadgesAndKPIs() {
-  const activeProjects = appState.projects.filter(p => p.stage !== 'Delivered').length;
-  const totalBalance = appState.projects.reduce((acc, p) => acc + (p.price - p.paid), 0);
-  const awaitingApproval = appState.projects.filter(p => p.stage === 'Client Review' || p.stage === 'Revisions').length;
-  const pendingTasks = appState.tasks.filter(t => !t.completed).length;
+  const activeProjects = (appState.projects || []).filter(p => p.stage !== 'Delivered');
+  const unpaidProjects = (appState.projects || []).filter(p => (p.price - p.paid) > 0);
+  const totalBalance = (appState.projects || []).reduce((acc, p) => acc + Math.max(0, (p.price || 0) - (p.paid || 0)), 0);
+  
+  // Projects needing client review or revision action or photo selection
+  const awaitingApprovalProjects = (appState.projects || []).filter(p => 
+    p.stage === 'Client Review' || p.stage === 'Revisions' || p.stage === 'Photo Selection'
+  );
+  
+  // Count unresolved spread revision notes
+  let unresolvedNotesCount = 0;
+  (appState.albumSpreads || []).forEach(s => {
+    if (Array.isArray(s.notes)) {
+      unresolvedNotesCount += s.notes.filter(n => !n.resolved).length;
+    }
+  });
+
+  // Upcoming shoots from calendar events or scheduled projects
+  const shootEvents = (appState.calendarEvents || []).filter(e => e.type === 'shoot');
+  const upcomingShootCount = shootEvents.length || (appState.projects || []).filter(p => p.stage === 'Shoot Scheduled').length;
+  
+  // Find next upcoming shoot
+  let nextShootText = 'No shoots scheduled';
+  if (shootEvents.length > 0) {
+    const sorted = [...shootEvents].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const next = sorted[0];
+    nextShootText = `Next: ${formatDate(next.date)} (${next.location || next.title.split('-')[0].trim()})`;
+  } else {
+    const scheduledProj = (appState.projects || []).find(p => p.stage === 'Shoot Scheduled');
+    if (scheduledProj) {
+      nextShootText = `Next: ${formatDate(scheduledProj.eventDate)} (${scheduledProj.clientName})`;
+    }
+  }
+
+  const pendingTasks = (appState.tasks || []).filter(t => !t.completed).length;
 
   const bClients = document.getElementById('badgeClientsCount');
-  if (bClients) bClients.textContent = appState.clients.length;
+  if (bClients) bClients.textContent = (appState.clients || []).length;
 
   const bProjects = document.getElementById('badgeProjectsCount');
-  if (bProjects) bProjects.textContent = appState.projects.length;
+  if (bProjects) bProjects.textContent = (appState.projects || []).length;
 
   const bTasks = document.getElementById('badgePendingTasksCount');
   if (bTasks) bTasks.textContent = pendingTasks;
 
   if (document.getElementById('kpiActiveProjects')) {
-    document.getElementById('kpiActiveProjects').textContent = activeProjects;
+    document.getElementById('kpiActiveProjects').textContent = activeProjects.length;
   }
+  if (document.getElementById('kpiActiveProjectsSub')) {
+    document.getElementById('kpiActiveProjectsSub').textContent = `Across ${(appState.clients || []).length} wedding & portrait clients`;
+  }
+
+  if (document.getElementById('kpiUpcomingShoots')) {
+    document.getElementById('kpiUpcomingShoots').textContent = upcomingShootCount;
+  }
+  if (document.getElementById('kpiUpcomingShootsSub')) {
+    document.getElementById('kpiUpcomingShootsSub').textContent = nextShootText;
+  }
+
   if (document.getElementById('kpiOutstandingAmount')) {
     document.getElementById('kpiOutstandingAmount').textContent = formatINR(totalBalance);
   }
+  if (document.getElementById('kpiOutstandingAmountSub')) {
+    document.getElementById('kpiOutstandingAmountSub').textContent = `From ${unpaidProjects.length} pending client installment${unpaidProjects.length === 1 ? '' : 's'}`;
+  }
+
   if (document.getElementById('kpiAwaitingApproval')) {
-    document.getElementById('kpiAwaitingApproval').textContent = awaitingApproval;
+    document.getElementById('kpiAwaitingApproval').textContent = awaitingApprovalProjects.length;
+  }
+  if (document.getElementById('kpiAwaitingApprovalSub')) {
+    document.getElementById('kpiAwaitingApprovalSub').textContent = unresolvedNotesCount > 0
+      ? `${unresolvedNotesCount} revision request${unresolvedNotesCount === 1 ? '' : 's'} • ${awaitingApprovalProjects.length} in review`
+      : `${awaitingApprovalProjects.length} in review pipeline`;
   }
 }
 
 // ================= 1. DASHBOARD =================
 function renderDashboard() {
   updateBadgesAndKPIs();
+  renderDashboardSpotlight();
 
   // Recent Projects Table
   const tbody = document.getElementById('tbodyDashboardProjects');
   if (tbody) {
-    const recent = appState.projects.slice(0, 5);
+    const recent = (appState.projects || []).slice(0, 6);
     if (recent.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">No active projects. Click "New Project" to add.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No active projects. Click "New Project" to add.</td></tr>`;
     } else {
       tbody.innerHTML = recent.map(p => {
-        const bal = p.price - p.paid;
+        const bal = Math.max(0, p.price - p.paid);
+        const projectGallery = getProjectGallery(p.id);
+        const selectedCount = (p.selectedPhotoIds || []).length;
+        const spreads = getProjectSpreads(p.id);
+        let openNotes = 0;
+        spreads.forEach(s => {
+          if (Array.isArray(s.notes)) {
+            openNotes += s.notes.filter(n => !n.resolved).length;
+          }
+        });
+
+        let milestoneStatusHtml = '';
+        if (p.stage === 'Approved' || p.stage === 'Delivered') {
+          milestoneStatusHtml = `<span class="badge badge-approved" style="font-size:11px;">✓ Layout Approved</span>`;
+        } else if (openNotes > 0) {
+          milestoneStatusHtml = `<span class="badge badge-revisions" style="font-size:11px;">⚠️ ${openNotes} Revision Note${openNotes === 1 ? '' : 's'}</span>`;
+        } else if (p.stage === 'Photo Selection') {
+          milestoneStatusHtml = `<span class="badge badge-selection" style="font-size:11px;">📸 ${selectedCount}/${projectGallery.length} Selected</span>`;
+        } else if (p.stage === 'Client Review') {
+          milestoneStatusHtml = `<span class="badge badge-review" style="font-size:11px;">📖 In Client Review</span>`;
+        } else {
+          milestoneStatusHtml = `<span style="font-size:11.5px; color:var(--text-secondary);">${spreads.length} Spreads • ${selectedCount} Picks</span>`;
+        }
+
         return `
           <tr>
             <td>
               <div class="user-cell" style="cursor:pointer;" onclick="openProjectWorkspace('${p.id}')">
-                <div class="avatar" style="width:34px; height:34px; font-size:11px;">
+                <div class="avatar" style="width:36px; height:36px; font-size:12px; font-weight:700;">
                   ${p.clientName.split('&')[0].trim().substring(0,1)}
                 </div>
                 <div class="user-cell-meta">
                   <div class="user-cell-name">${p.title}</div>
-                  <div class="user-cell-sub">${p.clientName}</div>
+                  <div class="user-cell-sub">${p.clientName} • ${p.package}</div>
                 </div>
               </div>
             </td>
-            <td>${formatDate(p.eventDate)}</td>
-            <td><span class="badge ${getBadgeClassForStage(p.stage)}">${p.stage}</span></td>
-            <td style="font-weight:600; color: ${bal > 0 ? '#b45309' : '#059669'};">
-              ${bal > 0 ? formatINR(bal) : 'Paid'}
+            <td>
+              <div style="font-size:12.5px; font-weight:500;">📅 ${formatDate(p.eventDate)}</div>
             </td>
             <td>
-              <div style="display:flex; gap:6px;">
-                <button class="btn btn-secondary btn-sm" onclick="openProjectWorkspace('${p.id}')">Workspace</button>
-                <button class="btn btn-primary btn-sm" onclick="openProjectPortal('${p.id}')">Portal →</button>
+              <span class="badge ${getBadgeClassForStage(p.stage)}">${p.stage}</span>
+            </td>
+            <td>
+              ${milestoneStatusHtml}
+            </td>
+            <td>
+              <div style="font-weight:600; font-size:13px; color: ${bal > 0 ? '#b45309' : '#059669'};">
+                ${bal > 0 ? formatINR(bal) : '✓ Paid in Full'}
+              </div>
+              ${bal > 0 ? `<div style="font-size:10.5px; color:var(--text-muted);">${Math.round((p.paid / p.price) * 100)}% collected</div>` : ''}
+            </td>
+            <td style="text-align:right;">
+              <div style="display:inline-flex; gap:6px;">
+                <button class="btn btn-secondary btn-sm" onclick="openProjectWorkspace('${p.id}')" title="Open Project Workspace">Workspace</button>
+                <button class="btn btn-primary btn-sm" onclick="openProjectPortal('${p.id}')" title="Open Client Approval Portal">Portal →</button>
               </div>
             </td>
           </tr>
@@ -1021,23 +1362,30 @@ function renderDashboard() {
   // Dashboard Task widget
   const taskWrap = document.getElementById('dashboardTaskList');
   if (taskWrap) {
-    const topTasks = appState.tasks.slice(0, 4);
+    const topTasks = (appState.tasks || []).slice(0, 5);
     if (topTasks.length === 0) {
-      taskWrap.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">No upcoming tasks.</div>`;
+      taskWrap.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:13px;">No upcoming tasks.</div>`;
     } else {
       taskWrap.innerHTML = topTasks.map(t => {
         const linkedProject = t.projectId ? getProject(t.projectId) : null;
+        let priorityBadge = '';
+        if (t.priority === 'High') priorityBadge = `<span class="badge-priority priority-high">High</span>`;
+        else if (t.priority === 'Medium') priorityBadge = `<span class="badge-priority priority-medium">Med</span>`;
+        else priorityBadge = `<span class="badge-priority priority-low">Low</span>`;
+
         return `
           <div class="task-item ${t.completed ? 'completed' : ''}">
             <div class="task-left">
-              <input type="checkbox" class="task-checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTaskComplete('${t.id}')">
+              <input type="checkbox" class="task-checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTaskComplete('${t.id}')" title="Toggle complete">
               <div class="task-info">
-                <div class="task-title">${t.title}</div>
+                <div class="task-title" style="${t.completed ? 'text-decoration:line-through; color:var(--text-muted);' : ''}">${t.title}</div>
                 <div class="task-meta">
-                  <span>📅 Due: ${formatDate(t.dueDate)}</span>
+                  <span>📅 ${formatDate(t.dueDate)}</span>
+                  <span>•</span>
+                  ${priorityBadge}
                   <span>•</span>
                   <span class="badge badge-design" style="padding: 1px 6px; font-size: 10px;">${t.category}</span>
-                  ${linkedProject ? `<span>•</span><span style="font-size:10px; color:var(--accent-bronze); font-weight:600; cursor:pointer;" onclick="openProjectWorkspace('${linkedProject.id}')">${linkedProject.title}</span>` : ''}
+                  ${linkedProject ? `<span>•</span><span style="font-size:11px; color:var(--accent-bronze); font-weight:600; cursor:pointer;" onclick="openProjectWorkspace('${linkedProject.id}')">${linkedProject.title}</span>` : ''}
                 </div>
               </div>
             </div>
@@ -1051,12 +1399,117 @@ function renderDashboard() {
   renderDashboardSpreadRevisions();
 }
 
+function renderDashboardSpotlight() {
+  const container = document.getElementById('dashboardPipelineSpotlight');
+  if (!container) return;
+
+  const spotlightItems = [];
+
+  // 1. Projects with unresolved spread revision notes
+  (appState.albumSpreads || []).forEach(s => {
+    const project = getProject(s.projectId);
+    if (Array.isArray(s.notes)) {
+      s.notes.filter(n => !n.resolved).forEach(n => {
+        spotlightItems.push({
+          type: 'revision',
+          title: `Spread Revision Requested`,
+          badge: 'Revision Pending',
+          badgeClass: 'badge-revisions',
+          projectName: project ? project.title : 'Project',
+          clientName: project ? project.clientName : 'Client',
+          details: `"${n.text}" (${n.author} on ${s.title})`,
+          actionText: 'View Spread',
+          actionFn: `goToSpreadFromStudio('${s.projectId}', '${s.id}')`,
+          projectId: s.projectId
+        });
+      });
+    }
+  });
+
+  // 2. Projects in Photo Selection
+  (appState.projects || []).filter(p => p.stage === 'Photo Selection').forEach(p => {
+    const gallery = getProjectGallery(p.id);
+    const selected = (p.selectedPhotoIds || []).length;
+    spotlightItems.push({
+      type: 'selection',
+      title: `Photo Selection Active`,
+      badge: 'Proof Gallery Live',
+      badgeClass: 'badge-selection',
+      projectName: p.title,
+      clientName: p.clientName,
+      details: `${selected} of ${gallery.length} photos selected by client for album proofing.`,
+      actionText: 'Manage Proofs',
+      actionFn: `openProjectPortal('${p.id}')`,
+      projectId: p.id
+    });
+  });
+
+  // 3. Upcoming shoots
+  (appState.calendarEvents || []).filter(e => e.type === 'shoot').forEach(e => {
+    spotlightItems.push({
+      type: 'shoot',
+      title: `Upcoming Photography Shoot`,
+      badge: `Shoot Date: ${formatDate(e.date)}`,
+      badgeClass: 'badge-scheduled',
+      projectName: e.title,
+      clientName: e.location || 'Scheduled Location',
+      details: `Scheduled shoot on ${formatDate(e.date)} at ${e.location || 'Studio/Location'}.`,
+      actionText: 'View Calendar',
+      actionFn: `navigateTo('calendar')`,
+      projectId: null
+    });
+  });
+
+  if (spotlightItems.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="dashboard-spotlight-card">
+      <div class="spotlight-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">⚡</span>
+          <div>
+            <h3 style="font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-primary);">
+              Pipeline Action Spotlight • Items Requiring Attention
+            </h3>
+            <p style="font-size:12px; color:var(--text-secondary); margin-top:1px;">
+              Direct actions for active client reviews, spread revisions, and upcoming shoots.
+            </p>
+          </div>
+        </div>
+        <span class="badge badge-review" style="font-size:11px;">${spotlightItems.length} Action${spotlightItems.length === 1 ? '' : 's'} Pending</span>
+      </div>
+
+      <div class="dashboard-spotlight-grid">
+        ${spotlightItems.slice(0, 3).map(item => `
+          <div class="spotlight-item ${item.type === 'revision' ? 'urgent' : ''}">
+            <div class="spotlight-item-top">
+              <span class="badge ${item.badgeClass}" style="font-size:10px;">${item.badge}</span>
+              ${item.projectId ? `<span class="spotlight-proj-link" onclick="openProjectWorkspace('${item.projectId}')">Workspace ↗</span>` : ''}
+            </div>
+            <div class="spotlight-item-title">${item.projectName}</div>
+            <div class="spotlight-item-sub">${item.clientName}</div>
+            <div class="spotlight-item-desc">${item.details}</div>
+            <div class="spotlight-item-action">
+              <button class="btn btn-secondary btn-sm" style="width:100%; justify-content:center; font-size:11.5px; padding:5px 10px;" onclick="${item.actionFn}">
+                ${item.actionText} →
+              </button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
 function renderDashboardSpreadRevisions() {
   const container = document.getElementById('dashboardSpreadRevisions');
   if (!container) return;
 
   const allNotes = [];
-  appState.albumSpreads.forEach(s => {
+  (appState.albumSpreads || []).forEach(s => {
     const project = getProject(s.projectId);
     if (Array.isArray(s.notes)) {
       s.notes.forEach(n => {
@@ -1077,7 +1530,7 @@ function renderDashboardSpreadRevisions() {
 
   if (allNotes.length === 0) {
     container.innerHTML = `
-      <div style="background:#faf8f5; border:1px solid var(--border-color); border-radius:var(--radius-md); padding:16px; text-align:center;">
+      <div style="background:#faf8f5; border:1px solid var(--border-color); border-radius:var(--radius-md); padding:20px; text-align:center;">
         <div style="color:var(--text-muted); font-size:13px;">No revision requests recorded across spreads.</div>
       </div>
     `;
@@ -1086,7 +1539,7 @@ function renderDashboardSpreadRevisions() {
 
   if (unresolved.length === 0) {
     container.innerHTML = `
-      <div style="background:#faf8f5; border:1px solid var(--border-color); border-radius:var(--radius-md); padding:16px; text-align:center;">
+      <div style="background:#faf8f5; border:1px solid var(--border-color); border-radius:var(--radius-md); padding:20px; text-align:center;">
         <div style="color:#059669; font-weight:600; font-size:13px; margin-bottom:4px;">✓ All Album Spread Revisions Resolved (${allNotes.length} notes total)</div>
         <div style="font-size:12px; color:var(--text-muted);">No open client change requests pending action.</div>
       </div>
@@ -1097,20 +1550,20 @@ function renderDashboardSpreadRevisions() {
   container.innerHTML = `
     <div style="display:flex; flex-direction:column; gap:10px;">
       ${unresolved.map(n => `
-        <div style="background:#fff; border:1px solid #ebd9b6; border-left:4px solid var(--accent-bronze); border-radius:var(--radius-md); padding:12px 14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-          <div>
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
-              <span class="badge badge-revisions" style="font-size:10px; padding:1px 6px;">${n.spreadTitle}</span>
-              <span class="badge badge-design" style="font-size:10px; padding:1px 6px; cursor:pointer;" onclick="openProjectWorkspace('${n.projectId}')">${n.projectName}</span>
-              <strong style="font-size:12px; color:var(--text-primary);">${n.author}</strong>
+        <div style="background:#fff; border:1px solid #ebd9b6; border-left:4px solid var(--accent-bronze); border-radius:var(--radius-md); padding:14px 16px; display:flex; justify-content:space-between; align-items:flex-start; gap:14px; box-shadow:var(--shadow-xs);">
+          <div style="flex:1;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+              <span class="badge badge-revisions" style="font-size:10.5px; padding:2px 7px;">${n.spreadTitle}</span>
+              <span class="badge badge-design" style="font-size:10.5px; padding:2px 7px; cursor:pointer;" onclick="openProjectWorkspace('${n.projectId}')">${n.projectName}</span>
+              <strong style="font-size:12.5px; color:var(--text-primary);">${n.author}</strong>
               <span style="font-size:11px; color:var(--text-muted);">${n.time || ''}</span>
             </div>
-            <div style="font-size:13px; color:var(--text-secondary);">${n.text}</div>
+            <div style="font-size:13px; color:var(--text-secondary); line-height:1.45;">"${n.text}"</div>
           </div>
           <div style="display:flex; gap:6px; flex-shrink:0;">
-            <button class="btn btn-secondary btn-sm" style="font-size:11px; padding:4px 8px;" onclick="goToSpreadFromStudio('${n.projectId}', '${n.spreadId}')">View Spread</button>
-            <button class="btn btn-success btn-sm" style="font-size:11px; padding:4px 8px;" onclick="toggleSpreadNoteResolved('${n.spreadId}', '${n.id}')">✓ Resolve</button>
-            <button class="btn btn-secondary btn-sm" style="font-size:11px; padding:4px 8px; color:#b91c1c;" onclick="confirmDeleteSpreadNote('${n.spreadId}', '${n.id}')" title="Delete note">
+            <button class="btn btn-secondary btn-sm" style="font-size:11px; padding:5px 9px;" onclick="goToSpreadFromStudio('${n.projectId}', '${n.spreadId}')">View Spread</button>
+            <button class="btn btn-success btn-sm" style="font-size:11px; padding:5px 9px;" onclick="toggleSpreadNoteResolved('${n.spreadId}', '${n.id}')">✓ Resolve</button>
+            <button class="btn btn-secondary btn-sm" style="font-size:11px; padding:5px 9px; color:#b91c1c;" onclick="confirmDeleteSpreadNote('${n.spreadId}', '${n.id}')" title="Delete note">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
           </div>
@@ -1122,13 +1575,22 @@ function renderDashboardSpreadRevisions() {
 
 function goToSpreadFromStudio(projectId, spreadId) {
   if (projectId) {
-    appState.activeProjectId = projectId;
+    const p = getProject(projectId);
+    if (p) {
+      appState.activeProjectId = p.id;
+      if (p.clientId) {
+        appState.activeClientId = p.clientId;
+      }
+    }
   }
   const spreads = getProjectSpreads(appState.activeProjectId);
   const idx = spreads.findIndex(s => s.id === spreadId);
   if (idx !== -1) {
     appState.activeSpreadIndex = idx;
+  } else {
+    appState.activeSpreadIndex = 0;
   }
+  switchAppMode('client');
   navigateTo('portal');
 }
 
@@ -1159,7 +1621,7 @@ function renderClientsTable() {
     return `
       <tr>
         <td>
-          <div class="user-cell">
+          <div class="user-cell" style="cursor:pointer;" onclick="openClientPortal('${c.id}')" title="Open Client Portal for ${c.name}">
             <div class="avatar">${c.initials}</div>
             <div class="user-cell-meta">
               <div class="user-cell-name">${c.name}</div>
@@ -1174,14 +1636,22 @@ function renderClientsTable() {
         <td>${c.location}</td>
         <td><span class="badge badge-scheduled">${c.eventType}</span></td>
         <td>
-          <span style="font-weight:600; font-size:12px; color:var(--text-primary);">${projCountText}</span>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <span style="font-weight:600; font-size:12px; color:var(--text-primary);">${projCountText}</span>
+            ${clientProjects.map(p => `
+              <span class="spotlight-proj-link" style="font-size:11px;" onclick="openProjectPortal('${p.id}')" title="Open portal for ${p.title}">
+                • ${p.title} (${p.stage})
+              </span>
+            `).join('')}
+          </div>
         </td>
-        <td><span class="badge ${c.status === 'Delivered' ? 'badge-delivered' : 'badge-approved'}">${c.status}</span></td>
+        <td><span class="badge ${c.status === 'Delivered' ? 'badge-delivered' : (c.status === 'Approved' ? 'badge-approved' : 'badge-review')}">${c.status}</span></td>
         <td>
           <div style="display:flex; gap:6px; align-items:center;">
+            <button class="btn btn-primary btn-sm" onclick="openClientPortal('${c.id}')" title="Open Client Portal for ${c.name}">Portal →</button>
             <button class="btn btn-secondary btn-sm" onclick="openEditClient('${c.id}')" title="Edit Client Details">Edit</button>
             ${clientProjects.length > 0 ? `
-              <button class="btn btn-secondary btn-sm" onclick="openProjectWorkspace('${clientProjects[0].id}')">Workspace</button>
+              <button class="btn btn-secondary btn-sm" onclick="openProjectWorkspace('${clientProjects[0].id}')" title="Open Workspace">Workspace</button>
             ` : `
               <button class="btn btn-secondary btn-sm" onclick="openModalForClientProject('${c.id}')">+ Project</button>
             `}
@@ -1203,7 +1673,7 @@ function filterClients(type, btn) {
 }
 
 function openClientProject(projectId) {
-  openProjectWorkspace(projectId);
+  openProjectPortal(projectId);
 }
 
 // ================= 3. PROJECTS =================
@@ -1317,7 +1787,7 @@ function renderProjectWorkspace() {
   const container = document.getElementById('projectWorkspaceContainer');
   if (!container) return;
 
-  const project = getProject(appState.activeProjectId);
+  const project = getProject(appState.activeProjectId) || appState.projects[0];
   if (!project) {
     container.innerHTML = `
       <div style="text-align:center; padding:60px 20px; background:#fff; border:1px solid var(--border-color); border-radius:var(--radius-lg);">
@@ -1329,14 +1799,39 @@ function renderProjectWorkspace() {
     `;
     return;
   }
+  appState.activeProjectId = project.id;
+  if (project.clientId) {
+    appState.activeClientId = project.clientId;
+  }
 
-  const client = appState.clients.find(c => c.id === project.clientId);
-  const bal = project.price - project.paid;
+  const client = (appState.clients || []).find(c => c.id === project.clientId || c.name === project.clientName);
+  const bal = Math.max(0, project.price - project.paid);
   const projectTasks = getProjectTasks(project.id);
-  const completedTasks = projectTasks.filter(t => t.completed).length;
-  const pendingTasks = projectTasks.length - completedTasks;
+  const completedTasks = projectTasks.filter(t => t.completed || t.status === 'Done').length;
+  const toDoTasks = projectTasks.filter(t => !t.completed && t.status !== 'In Progress').length;
+  const inProgTasks = projectTasks.filter(t => !t.completed && t.status === 'In Progress').length;
   const projectNotes = getProjectNotes(project.id);
   const projectActivity = getProjectActivity(project.id);
+  const projectSpreads = getProjectSpreads(project.id);
+  const projectGallery = getProjectGallery(project.id);
+
+  // Photo Selection statistics (Milestone 1)
+  const totalGalleryCount = projectGallery.length;
+  const selectedPhotosCount = (project.selectedPhotoIds || []).length;
+  const isPhotoSelectionDone = selectedPhotosCount > 0 && (project.stage !== 'Shoot Scheduled' && project.stage !== 'Photo Selection');
+  const photoPercent = totalGalleryCount > 0 ? Math.min(100, Math.round((selectedPhotosCount / totalGalleryCount) * 100)) : 0;
+
+  // Layflat Album Spread statistics (Milestone 2)
+  const totalSpreadsCount = projectSpreads.length;
+  let unresolvedSpreadNotesCount = 0;
+  let totalSpreadNotesCount = 0;
+  projectSpreads.forEach(s => {
+    if (Array.isArray(s.notes)) {
+      totalSpreadNotesCount += s.notes.length;
+      unresolvedSpreadNotesCount += s.notes.filter(n => !n.resolved).length;
+    }
+  });
+  const isAlbumApproved = project.stage === 'Approved' || project.stage === 'Delivered';
 
   // Filter tasks in workspace
   const filteredTasks = projectTasks.filter(t => {
@@ -1348,6 +1843,8 @@ function renderProjectWorkspace() {
   });
 
   const currentStageIndex = WORKSPACE_STAGES.indexOf(project.stage);
+  const taskPercent = projectTasks.length > 0 ? Math.round((completedTasks / projectTasks.length) * 100) : 0;
+  const paymentPercent = project.price > 0 ? Math.round((project.paid / project.price) * 100) : 0;
 
   container.innerHTML = `
     <div class="workspace-view-wrapper">
@@ -1360,7 +1857,10 @@ function renderProjectWorkspace() {
           <span class="workspace-breadcrumb-current">${project.title}</span>
         </div>
 
-        <div style="display:flex; gap:8px; align-items:center;">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="copyClientPortalLink('${project.id}')" title="Copy simulated client approval link">
+            🔗 Copy Client Link
+          </button>
           <button class="btn btn-secondary btn-sm" onclick="openRecordPaymentForProject('${project.id}')">
             + Record Payment
           </button>
@@ -1390,7 +1890,7 @@ function renderProjectWorkspace() {
             </div>
           </div>
 
-          <div style="display:flex; gap:6px;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <button class="btn btn-secondary btn-sm" onclick="openCreateTaskForProject('${project.id}')">+ New Task</button>
             <button class="btn btn-secondary btn-sm" onclick="openCreateNoteModal('${project.id}')">+ Add Note</button>
           </div>
@@ -1399,23 +1899,35 @@ function renderProjectWorkspace() {
         <!-- Notion-Style Properties Strip -->
         <div class="workspace-properties-grid">
           <div class="workspace-property-cell">
-            <span class="workspace-prop-label">Event Date</span>
-            <span class="workspace-prop-value">📅 ${formatDate(project.eventDate)}</span>
+            <span class="workspace-prop-label">📅 Event Date</span>
+            <span class="workspace-prop-value">${formatDate(project.eventDate)}</span>
           </div>
           <div class="workspace-property-cell">
-            <span class="workspace-prop-label">Delivery Deadline</span>
-            <span class="workspace-prop-value">🎯 ${formatDate(project.deliveryDeadline)}</span>
+            <span class="workspace-prop-label">🎯 Delivery Deadline</span>
+            <span class="workspace-prop-value">${formatDate(project.deliveryDeadline)}</span>
           </div>
           <div class="workspace-property-cell">
-            <span class="workspace-prop-label">Financials</span>
-            <span class="workspace-prop-value" style="color:${bal > 0 ? '#b45309' : '#059669'};">
-              ${formatINR(project.paid)} / ${formatINR(project.price)} (Bal: ${formatINR(bal)})
+            <span class="workspace-prop-label">💳 Contract & Balance</span>
+            <span class="workspace-prop-value" style="color:${bal > 0 ? '#b45309' : '#059669'}; ">
+              ${formatINR(project.paid)} / ${formatINR(project.price)} ${bal > 0 ? `(Bal: ${formatINR(bal)})` : '✓ Paid'}
             </span>
           </div>
           <div class="workspace-property-cell">
-            <span class="workspace-prop-label">Task Progress</span>
+            <span class="workspace-prop-label">📋 Task Progress</span>
             <span class="workspace-prop-value">
-              ${completedTasks} / ${projectTasks.length} Completed ${projectTasks.length > 0 ? `(${Math.round((completedTasks / projectTasks.length) * 100)}%)` : ''}
+              ${completedTasks} / ${projectTasks.length} Completed ${projectTasks.length > 0 ? `(${taskPercent}%)` : ''}
+            </span>
+          </div>
+          <div class="workspace-property-cell">
+            <span class="workspace-prop-label">📸 Photo Selection</span>
+            <span class="workspace-prop-value" style="color:var(--text-primary);">
+              ${totalGalleryCount > 0 ? `${selectedPhotosCount} / ${totalGalleryCount} Selected` : 'No Proofs Uploaded'}
+            </span>
+          </div>
+          <div class="workspace-property-cell">
+            <span class="workspace-prop-label">📖 Layflat Album</span>
+            <span class="workspace-prop-value" style="color:${isAlbumApproved ? '#059669' : (unresolvedSpreadNotesCount > 0 ? '#b91c1c' : 'var(--text-primary)')};">
+              ${totalSpreadsCount} Spreads • ${unresolvedSpreadNotesCount > 0 ? `${unresolvedSpreadNotesCount} Revision(s)` : (isAlbumApproved ? 'Approved' : 'In Design')}
             </span>
           </div>
         </div>
@@ -1424,25 +1936,24 @@ function renderProjectWorkspace() {
       <!-- Interactive 8-Stage Progress Tracker -->
       <div class="workspace-stepper-container">
         <div class="workspace-stepper-title-row">
-          <div style="display:flex; align-items:center; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Production Stage Tracker</span>
             <span class="badge ${getBadgeClassForStage(project.stage)}" style="font-size:11px;">Current: ${project.stage}</span>
           </div>
-          <div style="font-size:12px; color:var(--text-secondary);">Click any stage to update</div>
+          <div style="font-size:12px; color:var(--text-secondary);">Click any stage below to advance pipeline</div>
         </div>
 
         <div class="workspace-stages-track">
           ${WORKSPACE_STAGES.map((s, idx) => {
             const isCompleted = idx < currentStageIndex;
             const isCurrent = (s === project.stage);
-            const isPending = idx > currentStageIndex;
 
             let stateClass = 'pending';
             if (isCompleted) stateClass = 'completed';
             if (isCurrent) stateClass = 'current';
 
             return `
-              <div class="workspace-stage-node ${stateClass}" onclick="updateProjectStage('${project.id}', '${s}')" title="Set stage to ${s}">
+              <div class="workspace-stage-node ${stateClass}" onclick="updateProjectStage('${project.id}', '${s}')" title="Set project stage to ${s}">
                 <div class="workspace-stage-bubble">
                   ${isCompleted ? '✓' : (idx + 1)}
                 </div>
@@ -1450,6 +1961,91 @@ function renderProjectWorkspace() {
               </div>
             `;
           }).join('')}
+        </div>
+      </div>
+
+      <!-- Dedicated Dual-Track Client Approval & Deliverables Pipeline -->
+      <div class="workspace-approval-card">
+        <div class="workspace-approval-header">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="approval-header-icon">✨</div>
+            <div>
+              <h3 class="workspace-approval-title">Client Approval & Deliverables Pipeline</h3>
+              <p class="workspace-approval-sub">Two distinct client milestone workflows: Photo Selection and Layflat Album Approval.</p>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn btn-secondary btn-sm" onclick="copyClientPortalLink('${project.id}')" title="Copy simulated client approval link">
+              🔗 Share Client Link
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openProjectPortal('${project.id}')">
+              Open Full Client Portal →
+            </button>
+          </div>
+        </div>
+
+        <div class="workspace-approval-tracks">
+          <!-- Track 1: Photo Selection Track -->
+          <div class="approval-track-box">
+            <div class="track-box-header">
+              <div class="track-box-title-area">
+                <span class="track-step-pill">Milestone 1</span>
+                <h4 class="track-title">Photo Selection & Proofing</h4>
+              </div>
+              <span class="badge ${selectedPhotosCount > 0 ? (isPhotoSelectionDone ? 'badge-approved' : 'badge-selection') : 'badge-scheduled'}">
+                ${selectedPhotosCount > 0 ? (isPhotoSelectionDone ? '✓ Selections Confirmed' : `${selectedPhotosCount} Photos Picked`) : 'Pending Selection'}
+              </span>
+            </div>
+            <p class="track-desc">Clients review RAW/color-corrected proofs and pick their favorites for album design.</p>
+            
+            <div class="track-progress-wrapper">
+              <div class="track-progress-labels">
+                <span>Proof Selection Progress</span>
+                <strong>${totalGalleryCount > 0 ? `${selectedPhotosCount} of ${totalGalleryCount} Selected (${photoPercent}%)` : 'No gallery proofs uploaded'}</strong>
+              </div>
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill" style="width: ${photoPercent}%; background: ${isPhotoSelectionDone ? '#059669' : 'var(--accent-bronze)'};"></div>
+              </div>
+            </div>
+
+            <div class="track-actions">
+              <button class="btn btn-secondary btn-sm" onclick="openProjectPortal('${project.id}', 'gallery')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Manage Proof Gallery (${totalGalleryCount}) →
+              </button>
+            </div>
+          </div>
+
+          <!-- Track 2: Layflat Album Layout & Signoff Track -->
+          <div class="approval-track-box">
+            <div class="track-box-header">
+              <div class="track-box-title-area">
+                <span class="track-step-pill">Milestone 2</span>
+                <h4 class="track-title">Layflat Album Layout & Signoff</h4>
+              </div>
+              <span class="badge ${isAlbumApproved ? 'badge-approved' : (unresolvedSpreadNotesCount > 0 ? 'badge-revisions' : (project.stage === 'Client Review' ? 'badge-review' : 'badge-design'))}">
+                ${isAlbumApproved ? '✓ Layout Approved' : (unresolvedSpreadNotesCount > 0 ? `⚠️ ${unresolvedSpreadNotesCount} Revision Requested` : (project.stage === 'Client Review' ? 'Awaiting Signoff' : 'In Album Design'))}
+              </span>
+            </div>
+            <p class="track-desc">Clients flip through interactive 2-page spreads, pin revision notes, and sign off for print fabrication.</p>
+            
+            <div class="track-progress-wrapper">
+              <div class="track-progress-labels">
+                <span>Spread Layout & Revision Status</span>
+                <strong>${totalSpreadsCount > 0 ? `${totalSpreadsCount} Spreads • ${unresolvedSpreadNotesCount > 0 ? `${unresolvedSpreadNotesCount} Open Note(s)` : (isAlbumApproved ? 'Approved for Print' : 'All Notes Resolved')}` : 'No spreads created'}</strong>
+              </div>
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill" style="width: ${isAlbumApproved ? 100 : (unresolvedSpreadNotesCount > 0 ? 60 : (totalSpreadsCount > 0 ? 50 : 15))}%; background: ${isAlbumApproved ? '#059669' : (unresolvedSpreadNotesCount > 0 ? '#b91c1c' : 'var(--accent-bronze)')};"></div>
+              </div>
+            </div>
+
+            <div class="track-actions">
+              <button class="btn btn-secondary btn-sm" onclick="openProjectPortal('${project.id}', 'album')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                Review Layflat Spreads (${totalSpreadsCount}) →
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1467,12 +2063,12 @@ function renderProjectWorkspace() {
                 <span class="badge badge-scheduled" style="font-size:11px;">${completedTasks}/${projectTasks.length} Done</span>
               </div>
 
-              <div style="display:flex; gap:8px; align-items:center;">
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <div class="filter-pills" style="margin-bottom:0;">
-                  <button class="filter-pill ${appState.workspaceTaskFilter === 'all' ? 'active' : ''}" onclick="filterWorkspaceTasks('all', this)">All</button>
-                  <button class="filter-pill ${appState.workspaceTaskFilter === 'To Do' ? 'active' : ''}" onclick="filterWorkspaceTasks('To Do', this)">To Do</button>
-                  <button class="filter-pill ${appState.workspaceTaskFilter === 'In Progress' ? 'active' : ''}" onclick="filterWorkspaceTasks('In Progress', this)">In Progress</button>
-                  <button class="filter-pill ${appState.workspaceTaskFilter === 'Done' ? 'active' : ''}" onclick="filterWorkspaceTasks('Done', this)">Done</button>
+                  <button class="filter-pill ${appState.workspaceTaskFilter === 'all' ? 'active' : ''}" onclick="filterWorkspaceTasks('all', this)">All (${projectTasks.length})</button>
+                  <button class="filter-pill ${appState.workspaceTaskFilter === 'To Do' ? 'active' : ''}" onclick="filterWorkspaceTasks('To Do', this)">To Do (${toDoTasks})</button>
+                  <button class="filter-pill ${appState.workspaceTaskFilter === 'In Progress' ? 'active' : ''}" onclick="filterWorkspaceTasks('In Progress', this)">In Progress (${inProgTasks})</button>
+                  <button class="filter-pill ${appState.workspaceTaskFilter === 'Done' ? 'active' : ''}" onclick="filterWorkspaceTasks('Done', this)">Done (${completedTasks})</button>
                 </div>
                 <button class="btn btn-primary btn-sm" onclick="openCreateTaskForProject('${project.id}')">+ Add Task</button>
               </div>
@@ -1498,15 +2094,19 @@ function renderProjectWorkspace() {
                   </thead>
                   <tbody>
                     ${filteredTasks.map(t => {
-                      const isOverdue = !t.completed && t.dueDate && (new Date(t.dueDate) < new Date(2026, 9, 10));
-                      let priorityClass = 'badge-priority-medium';
-                      if (t.priority === 'High') priorityClass = 'badge-priority-high';
-                      if (t.priority === 'Low') priorityClass = 'badge-priority-low';
+                      const isOverdue = !t.completed && (t.dueDate < '2026-10-10');
+                      let priorityClass = 'priority-low';
+                      if (t.priority === 'High') priorityClass = 'priority-high';
+                      else if (t.priority === 'Medium') priorityClass = 'priority-medium';
+
+                      let statusBadge = 'badge-scheduled';
+                      if (t.status === 'In Progress') statusBadge = 'badge-editing';
+                      else if (t.status === 'Done' || t.completed) statusBadge = 'badge-approved';
 
                       return `
                         <tr>
                           <td>
-                            <input type="checkbox" class="task-checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTaskComplete('${t.id}')">
+                            <input type="checkbox" class="task-checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTaskComplete('${t.id}')" title="Mark completed">
                           </td>
                           <td>
                             <div class="notion-task-title-cell">
@@ -1517,15 +2117,13 @@ function renderProjectWorkspace() {
                             </div>
                           </td>
                           <td>
-                            <span class="badge badge-scheduled" style="font-size:10px;">${t.category}</span>
+                            <span class="badge badge-design" style="font-size:10px; padding:2px 6px;">${t.category}</span>
                           </td>
                           <td>
-                            <span class="badge ${priorityClass}" style="font-size:10px;">${t.priority || 'Medium'}</span>
+                            <span class="badge-priority ${priorityClass}">${t.priority || 'Normal'}</span>
                           </td>
                           <td>
-                            <span class="badge ${t.completed ? 'badge-approved' : (t.status === 'In Progress' ? 'badge-editing' : 'badge-review')}" style="font-size:10px;">
-                              ${t.completed ? 'Done' : (t.status || 'To Do')}
-                            </span>
+                            <span class="badge ${statusBadge}" style="font-size:10px; padding:2px 6px;">${t.completed ? 'Done' : (t.status || 'To Do')}</span>
                           </td>
                           <td>
                             <div style="font-size:12px; ${isOverdue ? 'color:#b91c1c; font-weight:600;' : ''}">
@@ -1552,7 +2150,7 @@ function renderProjectWorkspace() {
           <div class="card" style="margin-bottom:0;">
             <div class="card-header">
               <div style="display:flex; align-items:center; gap:8px;">
-                <div class="card-title">Project Notes & Specifications</div>
+                <div class="card-title">Project Notes & Creative Specifications</div>
                 <span class="badge badge-design" style="font-size:11px;">${projectNotes.length} Document${projectNotes.length === 1 ? '' : 's'}</span>
               </div>
               <button class="btn btn-primary btn-sm" onclick="openCreateNoteModal('${project.id}')">+ New Note</button>
@@ -1599,42 +2197,61 @@ function renderProjectWorkspace() {
           <!-- Client & Package Details Card -->
           <div class="card" style="margin-bottom:0;">
             <div class="card-header">
-              <div class="card-title">Client & Package Overview</div>
+              <div class="card-title">Client & Financial Overview</div>
             </div>
             
-            <div style="display:flex; flex-direction:column; gap:12px; font-size:13px;">
+            <div style="display:flex; flex-direction:column; gap:14px; font-size:13px;">
               <div>
-                <span style="font-size:11px; text-transform:uppercase; font-weight:600; color:var(--text-muted); display:block;">Primary Client</span>
-                <strong style="color:var(--text-primary); font-size:14px;">${project.clientName}</strong>
+                <span style="font-size:11px; text-transform:uppercase; font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px;">Primary Client</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div class="avatar" style="width:30px; height:30px; font-size:11px;">
+                    ${project.clientName.split('&')[0].trim().substring(0,1)}
+                  </div>
+                  <strong style="color:var(--text-primary); font-size:14px;">${project.clientName}</strong>
+                </div>
                 ${client ? `
-                  <div style="color:var(--text-secondary); margin-top:2px;">✉️ ${client.email}</div>
-                  <div style="color:var(--text-secondary); margin-top:1px;">📞 ${client.phone}</div>
-                  <div style="color:var(--text-secondary); margin-top:1px;">📍 ${client.location}</div>
+                  <div style="color:var(--text-secondary); margin-top:6px; font-size:12.5px;">
+                    <a href="mailto:${client.email}" style="color:var(--text-secondary); display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+                      <span>✉️</span> <span>${client.email}</span>
+                    </a>
+                    <a href="tel:${client.phone}" style="color:var(--text-secondary); display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+                      <span>📞</span> <span>${client.phone}</span>
+                    </a>
+                    <div style="display:flex; align-items:center; gap:6px; color:var(--text-muted);">
+                      <span>📍</span> <span>${client.location}</span>
+                    </div>
+                  </div>
                 ` : ''}
               </div>
 
-              <div style="border-top:1px solid var(--border-light); padding-top:10px;">
-                <span style="font-size:11px; text-transform:uppercase; font-weight:600; color:var(--text-muted); display:block;">Package & Coverage</span>
-                <strong>${project.package}</strong>
+              <div style="border-top:1px solid var(--border-light); padding-top:12px;">
+                <span style="font-size:11px; text-transform:uppercase; font-weight:600; color:var(--text-muted); display:block; margin-bottom:2px;">Package & Coverage</span>
+                <strong style="color:var(--text-primary);">${project.package}</strong>
               </div>
 
-              <div style="border-top:1px solid var(--border-light); padding-top:10px;">
-                <span style="font-size:11px; text-transform:uppercase; font-weight:600; color:var(--text-muted); display:block;">Contract Ledger</span>
-                <div style="display:flex; justify-content:space-between; margin-top:3px;">
-                  <span>Agreed Price:</span>
+              <div style="border-top:1px solid var(--border-light); padding-top:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <span style="font-size:11px; text-transform:uppercase; font-weight:600; color:var(--text-muted);">Contract Ledger</span>
+                  <span style="font-size:11px; font-weight:600; color:${bal > 0 ? '#b45309' : '#059669'}; ">${paymentPercent}% Paid</span>
+                </div>
+                <div class="progress-bar-container" style="margin-bottom:8px;">
+                  <div class="progress-bar-fill" style="width:${paymentPercent}%; background:${bal > 0 ? 'var(--accent-bronze)' : '#059669'}; "></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                  <span style="color:var(--text-secondary);">Agreed Price:</span>
                   <strong>${formatINR(project.price)}</strong>
                 </div>
-                <div style="display:flex; justify-content:space-between; color:#059669;">
+                <div style="display:flex; justify-content:space-between; color:#059669; margin-bottom:3px;">
                   <span>Paid to Date:</span>
                   <strong>${formatINR(project.paid)}</strong>
                 </div>
                 <div style="display:flex; justify-content:space-between; color:#b45309; font-weight:600;">
                   <span>Outstanding:</span>
-                  <span>${formatINR(bal)}</span>
+                  <span>${bal > 0 ? formatINR(bal) : '✓ Paid in Full'}</span>
                 </div>
               </div>
 
-              <div style="margin-top:4px;">
+              <div style="margin-top:2px;">
                 <button class="btn btn-secondary btn-sm" style="width:100%; justify-content:center;" onclick="openRecordPaymentForProject('${project.id}')">
                   + Record Payment Installment
                 </button>
@@ -1652,7 +2269,7 @@ function renderProjectWorkspace() {
               <div style="text-align:center; padding:24px 10px; color:var(--text-muted); font-size:12.5px;">
                 No activity recorded yet for this project.
               </div>
-            ` : `
+` : `
               <div class="workspace-activity-timeline">
                 ${projectActivity.slice(0, 8).map(act => `
                   <div class="workspace-activity-row">
@@ -2103,28 +2720,49 @@ function updatePaymentFormHint() {
   }
 }
 
-// ================= 7. CLIENT PORTAL & MULTI-PROJECT ALBUM VIEWER =================
+/// ================= 7. CLIENT PORTAL & MULTI-PROJECT ALBUM VIEWER =================
 function renderPortalView() {
+  let client = getClient(appState.activeClientId);
   let project = getProject(appState.activeProjectId);
-  if (!project && appState.projects.length > 0) {
-    project = appState.projects[0];
-    appState.activeProjectId = project.id;
+
+  // If project exists, make sure client matches project's clientId
+  if (project && project.clientId) {
+    if (!client || client.id !== project.clientId) {
+      client = getClient(project.clientId);
+      if (client) {
+        appState.activeClientId = client.id;
+      }
+    }
   }
 
-  if (!project) {
-    renderEmptyPortal();
-    return;
+  // If no client, fallback to first client
+  if (!client && appState.clients.length > 0) {
+    client = appState.clients[0];
+    appState.activeClientId = client.id;
   }
 
-  const client = appState.clients.find(c => c.id === project.clientId);
+  // If client exists, make sure project belongs to this client
+  if (client) {
+    const clientProjects = getClientProjects(client.id);
+    if (!project || project.clientId !== client.id) {
+      project = clientProjects.length > 0 ? clientProjects[0] : null;
+      appState.activeProjectId = project ? project.id : null;
+    }
+  }
 
   // Update mode button in top demo bar
   const clientBtn = document.getElementById('btnModeClient');
   if (clientBtn) {
+    const cName = client ? client.name.split('&')[0].trim() : 'Client';
     clientBtn.innerHTML = `
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      Client View: ${project.clientName}
+      Client View: ${cName}
     `;
+  }
+
+  if (!client || !project) {
+    renderEmptyPortal(client);
+    return;
   }
 
   // Update Hero Banner
@@ -2139,31 +2777,88 @@ function renderPortalView() {
 
   const subEl = document.getElementById('portalCoupleSub');
   if (subEl) {
-    subEl.textContent = `FrameHouse Studio • Private Client Album Approval Portal (${project.title})`;
+    subEl.textContent = `Artisan Visuals • Private Client Approval Portal (${project.title})`;
   }
 
-  // Multi-project switcher for client
+  // Client & Project switcher bar in Portal Hero
   const switcherBar = document.getElementById('portalProjectSwitcherBar');
   if (switcherBar) {
-    const clientProjects = appState.projects.filter(p => p.clientId === project.clientId);
-    if (clientProjects.length > 1) {
-      switcherBar.style.display = 'flex';
-      switcherBar.innerHTML = `
-        <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(0,0,0,0.3); backdrop-filter:blur(6px); padding:5px 14px; border-radius:20px; border:1px solid rgba(255,255,255,0.25); font-size:12px; color:#fff;">
-          <span style="opacity:0.9;">Viewing Booking:</span>
-          <select style="background:transparent; color:#fff; border:none; font-size:12px; font-weight:600; cursor:pointer; outline:none;" onchange="openProjectPortal(this.value)">
+    const clientProjects = getClientProjects(client.id);
+    switcherBar.style.display = 'flex';
+    switcherBar.style.flexWrap = 'wrap';
+    switcherBar.style.justifyContent = 'center';
+    switcherBar.style.gap = '10px';
+    switcherBar.innerHTML = `
+      <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(0,0,0,0.45); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); padding:6px 14px; border-radius:20px; border:1px solid rgba(255,255,255,0.25); font-size:12px; color:#fff;">
+        <span style="opacity:0.9; font-weight:600;">👤 Client Portal:</span>
+        <select id="portalClientSwitcherSelect" style="background:transparent; color:#fff; border:none; font-size:12px; font-weight:600; cursor:pointer; outline:none;" onchange="openClientPortal(this.value)">
+          ${(appState.clients || []).map(c => `
+            <option value="${c.id}" ${c.id === client.id ? 'selected' : ''} style="color:#111; background:#fff;">
+              ${c.name} (${c.location || c.eventType})
+            </option>
+          `).join('')}
+        </select>
+      </div>
+
+      <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(0,0,0,0.45); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); padding:6px 14px; border-radius:20px; border:1px solid rgba(255,255,255,0.25); font-size:12px; color:#fff;">
+        <span style="opacity:0.9; font-weight:600;">📖 Project / Album:</span>
+        ${clientProjects.length > 1 ? `
+          <select id="portalProjectSwitcherSelect" style="background:transparent; color:#fff; border:none; font-size:12px; font-weight:600; cursor:pointer; outline:none;" onchange="openProjectPortal(this.value)">
             ${clientProjects.map(cp => `
-              <option value="${cp.id}" ${cp.id === project.id ? 'selected' : ''} style="color:#111;">
+              <option value="${cp.id}" ${cp.id === project.id ? 'selected' : ''} style="color:#111; background:#fff;">
                 ${cp.title} (${cp.package})
               </option>
             `).join('')}
           </select>
+        ` : `
+          <span style="font-weight:600; color:#f7e6c4;">${project.title} (${project.package})</span>
+        `}
+      </div>
+    `;
+  }
+
+  // Client Welcome & Guidance Instructions Card
+  const welcomeCard = document.getElementById('portalWelcomeCard');
+  if (welcomeCard) {
+    const isApproved = (project.stage === 'Approved' || project.stage === 'Delivered');
+    const gallery = getProjectGallery(project.id);
+    const selectedCount = (project.selectedPhotoIds || []).length;
+    const spreads = getProjectSpreads(project.id);
+    let openNotes = 0;
+    spreads.forEach(s => {
+      if (Array.isArray(s.notes)) {
+        openNotes += s.notes.filter(n => !n.resolved).length;
+      }
+    });
+
+    welcomeCard.innerHTML = `
+      <div class="portal-welcome-msg">
+        <strong>Welcome, ${project.clientName.split('&')[0].trim()}!</strong> Here is your private client portal for <em>${project.title}</em>. Review your curated highlight photographs, flip through double-page album spreads, leave retouching requests, and authorize your bespoke album for handcrafted leather print fabrication.
+      </div>
+      <div class="portal-workflow-steps">
+        <div class="portal-step-item" onclick="switchPortalTab('album')">
+          <div class="portal-step-item-icon">📖</div>
+          <div>
+            <div class="portal-step-item-title">1. Review Layflat Spreads</div>
+            <div class="portal-step-item-desc">${spreads.length} Spreads • ${isApproved ? '<span style="color:#6ee7b7; font-weight:600;">Approved ✓</span>' : (openNotes > 0 ? `<span style="color:#fde68a;">${openNotes} Change Request(s)</span>` : 'Ready for Signoff')}</div>
+          </div>
         </div>
-      `;
-    } else {
-      switcherBar.style.display = 'none';
-      switcherBar.innerHTML = '';
-    }
+        <div class="portal-step-item" onclick="switchPortalTab('gallery')">
+          <div class="portal-step-item-icon">📸</div>
+          <div>
+            <div class="portal-step-item-title">2. Curate Highlight Proofs</div>
+            <div class="portal-step-item-desc">${selectedCount} of ${gallery.length} Selected ${project.photoSelectionConfirmed ? '• <span style="color:#6ee7b7;">Submitted ✓</span>' : ''}</div>
+          </div>
+        </div>
+        <div class="portal-step-item" onclick="switchPortalTab('deliverables')">
+          <div class="portal-step-item-icon">📦</div>
+          <div>
+            <div class="portal-step-item-title">3. Package Inclusions</div>
+            <div class="portal-step-item-desc">${project.package}</div>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   // Update Deliverables Package Title
@@ -2173,7 +2868,9 @@ function renderPortalView() {
   // Update Approval modal text
   const modalApproveText = document.getElementById('modalApproveAlbumText');
   if (modalApproveText) {
-    modalApproveText.innerHTML = `You are authorizing final archival approval for <strong>${project.clientName} — ${project.title}</strong> (${project.package}). This will officially lock the spread layout and commission our master print binders to commence handcrafted layflat fabrication.`;
+    const spreads = getProjectSpreads(project.id);
+    const spreadInfo = spreads.length > 0 ? `all ${spreads.length} album spreads` : 'the album package';
+    modalApproveText.innerHTML = `You are authorizing final archival approval for <strong>${project.clientName} — ${project.title}</strong> (${project.package}, ${spreadInfo}). This will officially lock the spread layout and commission our master print binders to commence handcrafted layflat fabrication.`;
   }
 
   updatePortalProgressStepper(project);
@@ -2182,26 +2879,59 @@ function renderPortalView() {
   renderPortalDeliverables(project);
 }
 
-function renderEmptyPortal() {
+function renderEmptyPortal(client) {
+  const cName = client ? client.name : "Client";
+  const cLoc = client ? client.location : "Studio Client";
+
   const tagEl = document.getElementById('portalCoupleTag');
-  if (tagEl) tagEl.textContent = "No Active Projects";
+  if (tagEl) tagEl.textContent = `${client ? client.eventType : 'Client'} • ${cLoc}`;
 
   const titleEl = document.getElementById('portalCoupleTitle');
-  if (titleEl) titleEl.textContent = "Client Approval Portal";
+  if (titleEl) titleEl.textContent = cName;
 
   const subEl = document.getElementById('portalCoupleSub');
-  if (subEl) subEl.textContent = "No project selected or project could not be located. Please select a project from Studio Management.";
+  if (subEl) subEl.textContent = `Artisan Visuals • Private Client Approval Portal`;
+
+  const switcherBar = document.getElementById('portalProjectSwitcherBar');
+  if (switcherBar) {
+    switcherBar.style.display = 'flex';
+    switcherBar.style.flexWrap = 'wrap';
+    switcherBar.style.justifyContent = 'center';
+    switcherBar.style.gap = '10px';
+    switcherBar.innerHTML = `
+      <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(0,0,0,0.45); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); padding:6px 14px; border-radius:20px; border:1px solid rgba(255,255,255,0.25); font-size:12px; color:#fff;">
+        <span style="opacity:0.9; font-weight:600;">👤 Client Portal:</span>
+        <select id="portalClientSwitcherSelect" style="background:transparent; color:#fff; border:none; font-size:12px; font-weight:600; cursor:pointer; outline:none;" onchange="openClientPortal(this.value)">
+          ${(appState.clients || []).map(c => `
+            <option value="${c.id}" ${client && c.id === client.id ? 'selected' : ''} style="color:#111; background:#fff;">
+              ${c.name} (${c.location || c.eventType})
+            </option>
+          `).join('')}
+        </select>
+      </div>
+    `;
+  }
+
+  const welcomeCard = document.getElementById('portalWelcomeCard');
+  if (welcomeCard) {
+    welcomeCard.innerHTML = `
+      <div class="portal-welcome-msg" style="text-align:center;">
+        <strong>Welcome, ${cName.split('&')[0].trim()}!</strong> Your photography project record is currently being configured by our studio team. As soon as your photo proofs or album spreads are published, you will be able to review and approve them here.
+      </div>
+    `;
+  }
 
   const stepper = document.getElementById('portalStepper');
-  if (stepper) stepper.innerHTML = `<div style="color:var(--text-muted); font-size:13px; padding:8px 0;">No active project loaded</div>`;
+  if (stepper) stepper.innerHTML = `<div style="color:var(--text-muted); font-size:13px; padding:8px 0; text-align:center;">No active project booking loaded</div>`;
 
   const viewer = document.getElementById('albumSpreadViewer');
   if (viewer) {
     viewer.innerHTML = `
       <div style="grid-column: 1/-1; padding: 60px 24px; text-align: center; background: #fff; border: 1px solid var(--border-color); border-radius: 8px; width: 100%;">
-        <div style="font-size: 36px; margin-bottom: 12px;">📖</div>
-        <h3 style="font-family: var(--font-serif); font-size: 22px; color: var(--text-primary); margin-bottom: 8px;">No Project Selected</h3>
-        <p style="font-size: 13px; color: var(--text-secondary); max-width: 440px; margin: 0 auto;">Please open a project from the Studio Management workspace to launch its dedicated client approval portal.</p>
+        <div style="font-size: 36px; margin-bottom: 12px;">📁</div>
+        <h3 style="font-family: var(--font-serif); font-size: 22px; color: var(--text-primary); margin-bottom: 8px;">No Photography Project Created</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); max-width: 440px; margin: 0 auto 20px;">There are no projects associated with <strong>${cName}</strong> yet. You can create a new project for this client in Studio Management.</p>
+        <button class="btn btn-primary btn-sm" onclick="openModalForClientProject('${client ? client.id : ''}')">+ Create Project for ${cName}</button>
       </div>
     `;
   }
@@ -2211,6 +2941,15 @@ function renderEmptyPortal() {
 
   const feed = document.getElementById('spreadCommentsFeed');
   if (feed) feed.innerHTML = '';
+
+  const approvalActionArea = document.getElementById('albumApprovalActionArea');
+  if (approvalActionArea) approvalActionArea.innerHTML = '';
+
+  const topApproveBtn = document.getElementById('btnTopApproveAlbum');
+  if (topApproveBtn) topApproveBtn.style.display = 'none';
+
+  const approvalSummary = document.getElementById('albumApprovalStatusSummary');
+  if (approvalSummary) approvalSummary.textContent = "No project selected.";
 }
 
 function updatePortalProgressStepper(project) {
@@ -2235,7 +2974,7 @@ function updatePortalProgressStepper(project) {
       <div class="step-divider"></div>
       <div class="step-node ${isEditing ? 'active' : (stage === 'Shoot Scheduled' ? '' : 'completed')}">
         <div class="step-num">${stage === 'Shoot Scheduled' ? '3' : (isEditing ? '3' : '✓')}</div>
-        <span>Editing & Curation</span>
+        <span>Editing & Proofing</span>
       </div>
       <div class="step-divider"></div>
       <div class="step-node ${isApproved ? 'completed' : (isRevisions ? 'active' : '')}">
@@ -2274,6 +3013,7 @@ function renderPortalSpreadViewer(project) {
   const strip = document.getElementById('spreadThumbsStrip');
   const feed = document.getElementById('spreadCommentsFeed');
   const topApproveBtn = document.getElementById('btnTopApproveAlbum');
+  const celebrationBanner = document.getElementById('portalApprovedCelebrationBanner');
 
   if (badgeDeliv) {
     if (isApproved) {
@@ -2282,6 +3022,26 @@ function renderPortalSpreadViewer(project) {
     } else {
       badgeDeliv.className = 'badge badge-review';
       badgeDeliv.textContent = 'Awaiting Client Approval';
+    }
+  }
+
+  // Celebratory Banner when album is approved
+  if (celebrationBanner) {
+    if (isApproved) {
+      celebrationBanner.style.display = 'block';
+      celebrationBanner.innerHTML = `
+        <div class="portal-celebration-banner">
+          <div class="celebration-icon">✓</div>
+          <div class="celebration-text">
+            <h4>Layflat Album Layout Officially Approved for Print</h4>
+            <p>Authorized by <strong>${project.clientName}</strong> on ${project.approvedAt ? formatDate(project.approvedAt.split('T')[0]) : 'file'}. Handcrafted Italian leather binding and Fuji Pearl fine-art printing are now underway in our master studio.</p>
+          </div>
+          <span class="badge badge-approved" style="font-size:11px;">✓ Locked for Fabrication</span>
+        </div>
+      `;
+    } else {
+      celebrationBanner.style.display = 'none';
+      celebrationBanner.innerHTML = '';
     }
   }
 
@@ -2295,10 +3055,44 @@ function renderPortalSpreadViewer(project) {
       spreadBadge.textContent = `Design Stage: ${project.stage}`;
     }
     if (topApproveBtn) {
-      topApproveBtn.style.display = 'none';
+      topApproveBtn.style.display = 'inline-flex';
+      if (isApproved) {
+        topApproveBtn.className = 'btn btn-secondary btn-sm';
+        topApproveBtn.style.color = '#059669';
+        topApproveBtn.style.fontWeight = '600';
+        topApproveBtn.innerHTML = `✓ Officially Approved`;
+        topApproveBtn.onclick = () => showToast(`This album was authorized and approved on ${project.approvedAt ? formatDate(project.approvedAt.split('T')[0]) : 'file'}.`);
+      } else {
+        topApproveBtn.className = 'btn btn-primary btn-sm';
+        topApproveBtn.style.color = '';
+        topApproveBtn.innerHTML = `✓ Approve Album`;
+        topApproveBtn.onclick = () => openAlbumApprovalModal(project.id);
+      }
     }
     if (approvalSummary) {
-      approvalSummary.innerHTML = `Album layout for <strong>${project.title}</strong> is currently being color-graded and curated by our studio designers. Spreads will appear here for your review as soon as the initial design pass is complete.`;
+      if (isApproved) {
+        approvalSummary.innerHTML = `<span style="color:#059669; font-weight:700;">✓ Officially Approved for Fine-Art Print</span> on ${project.approvedAt ? formatDate(project.approvedAt.split('T')[0]) : 'file'}.`;
+      } else {
+        approvalSummary.innerHTML = `Album layout for <strong>${project.title}</strong> is currently being prepared. You can review project details or authorize album approval when ready.`;
+      }
+    }
+    const approvalActionArea = document.getElementById('albumApprovalActionArea');
+    if (approvalActionArea) {
+      if (isApproved) {
+        approvalActionArea.innerHTML = `
+          <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:12px 16px; text-align:center; color:#065f46; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+            <span>Archival Album Approved for Print</span>
+          </div>
+        `;
+      } else {
+        approvalActionArea.innerHTML = `
+          <button class="btn btn-success" id="btnPortalApproveCta" style="width: 100%; justify-content: center; padding: 12px; font-weight:600;" onclick="openAlbumApprovalModal('${project.id}')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+            Approve & Authorize Fine-Art Print
+          </button>
+        `;
+      }
     }
     if (viewer) {
       viewer.innerHTML = `
@@ -2326,12 +3120,12 @@ function renderPortalSpreadViewer(project) {
       topApproveBtn.style.color = '#059669';
       topApproveBtn.style.fontWeight = '600';
       topApproveBtn.innerHTML = `✓ Officially Approved`;
-      topApproveBtn.onclick = () => showToast(`This album was already authorized and officially approved on ${project.approvedAt ? formatDate(project.approvedAt.split('T')[0]) : 'file'}.`);
+      topApproveBtn.onclick = () => showToast(`This album was authorized and approved on ${project.approvedAt ? formatDate(project.approvedAt.split('T')[0]) : 'file'}.`);
     } else {
       topApproveBtn.className = 'btn btn-primary btn-sm';
       topApproveBtn.style.color = '';
       topApproveBtn.innerHTML = `✓ Approve Album`;
-      topApproveBtn.onclick = () => openAlbumApprovalModal();
+      topApproveBtn.onclick = () => openAlbumApprovalModal(project.id);
     }
   }
 
@@ -2350,7 +3144,7 @@ function renderPortalSpreadViewer(project) {
   const unresolvedSpreadNotes = currentNotes.filter(n => !n.resolved);
 
   if (notesCountText) {
-    notesCountText.textContent = `${currentNotes.length} Request${currentNotes.length === 1 ? '' : 's'} (${unresolvedSpreadNotes.length} Pending Action)`;
+    notesCountText.textContent = `${currentNotes.length} Note${currentNotes.length === 1 ? '' : 's'} on Spread ${appState.activeSpreadIndex + 1} (${unresolvedSpreadNotes.length} Pending Action)`;
   }
 
   if (spreadBadge) {
@@ -2404,7 +3198,7 @@ function renderPortalSpreadViewer(project) {
         <div class="spread-thumb-item ${idx === appState.activeSpreadIndex ? 'active' : ''}" onclick="selectSpread(${idx})" title="Go to Spread ${idx + 1}: ${s.title}">
           <div class="spread-thumb-preview">
             <img src="${s.leftImg}" alt="Spread ${idx + 1}">
-            ${hasUnresolved ? `<span style="position:absolute; top:4px; right:4px; width:7px; height:7px; border-radius:50%; background:#f59e0b; border:1px solid #fff;"></span>` : ''}
+            ${hasUnresolved ? `<span style="position:absolute; top:4px; right:4px; width:8px; height:8px; border-radius:50%; background:#f59e0b; border:1px solid #fff;"></span>` : ''}
           </div>
           <div class="spread-thumb-label">Spread ${String(idx + 1).padStart(2, '0')}</div>
         </div>
@@ -2417,7 +3211,7 @@ function renderPortalSpreadViewer(project) {
     if (currentNotes.length === 0) {
       feed.innerHTML = `
         <div style="font-size:12.5px; color:var(--text-muted); padding:16px 8px; text-align:center; background:#faf8f5; border-radius:6px; border:1px dashed var(--border-color);">
-          No revision requests on this spread. Click <strong>"Request Revision"</strong> or write instructions below if you'd like any photo replacements or tone tweaks.
+          No revision requests on this spread. Click <strong>"Request Revision"</strong> or write instructions below if you'd like any photo replacements, exposure adjustments, or crop tweaks.
         </div>
       `;
     } else {
@@ -2431,8 +3225,8 @@ function renderPortalSpreadViewer(project) {
               </div>
             </div>
             <div style="display:flex; gap:6px; align-items:center;">
-              <span class="badge ${n.resolved ? 'badge-approved' : 'badge-revisions'}" style="font-size:10px; padding:2px 6px;">
-                ${n.resolved ? '✓ Resolved by Studio' : 'Requested'}
+              <span class="badge ${n.resolved ? 'badge-approved' : 'badge-revisions'}" style="font-size:10px; padding:2px 6px; cursor:pointer;" onclick="toggleSpreadNoteResolved('${currentSpread.id}', '${n.id}')" title="Click to toggle resolved status">
+                ${n.resolved ? '✓ Resolved by Studio' : '⚠️ Revision Request (Click to Resolve)'}
               </span>
               <button class="btn btn-secondary btn-sm" style="font-size:10px; padding:2px 6px; color:#b91c1c;" onclick="confirmDeleteSpreadNote('${currentSpread.id}', '${n.id}')" title="Delete this revision note">
                 ✕
@@ -2450,9 +3244,11 @@ function renderPortalSpreadViewer(project) {
   // Render Archival Approval Card
   if (approvalSummary) {
     if (isApproved) {
-      approvalSummary.innerHTML = `✅ <strong>Officially Approved</strong> for ${project.clientName}. Fine-art layflat Fuji Pearl print and leather embossing in production.`;
+      approvalSummary.innerHTML = `<span style="color:#059669; font-weight:700;">✓ Officially Approved for Fine-Art Print</span> on ${project.approvedAt ? formatDate(project.approvedAt.split('T')[0]) : 'file'}. Handcrafted layflat Fuji Pearl print fabrication is now underway.`;
+    } else if (unresolvedSpreadNotes.length > 0) {
+      approvalSummary.innerHTML = `<span style="color:#b91c1c; font-weight:600;">⚠️ ${unresolvedSpreadNotes.length} Revision Request${unresolvedSpreadNotes.length === 1 ? '' : 's'} Pending</span> on this spread. Studio team is addressing your feedback.`;
     } else {
-      approvalSummary.innerHTML = `Pending client sign-off (${spreads.length} Spreads total).`;
+      approvalSummary.innerHTML = `Spread layout is ready for your review. When satisfied with all ${spreads.length} spreads, click below to authorize final fine-art print production.`;
     }
   }
 
@@ -2460,16 +3256,16 @@ function renderPortalSpreadViewer(project) {
   if (approvalActionArea) {
     if (isApproved) {
       approvalActionArea.innerHTML = `
-        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:12px 16px; text-align:center; color:#065f46; font-weight:600; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:12px 16px; text-align:center; color:#065f46; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
           <span>Archival Album Approved for Print</span>
         </div>
       `;
     } else {
       approvalActionArea.innerHTML = `
-        <button class="btn btn-success" id="btnPortalApproveCta" style="width: 100%; justify-content: center; padding: 12px; font-weight:600;" onclick="openAlbumApprovalModal()">
+        <button class="btn btn-success" id="btnPortalApproveCta" style="width: 100%; justify-content: center; padding: 12px; font-weight:600;" onclick="openAlbumApprovalModal('${project.id}')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-          Approve & Authorize Print
+          Approve & Authorize Fine-Art Print
         </button>
       `;
     }
@@ -2492,192 +3288,178 @@ function navigateSpread(delta) {
   const spreads = getProjectSpreads(project.id);
   if (spreads.length === 0) return;
 
-  let next = appState.activeSpreadIndex + delta;
-  if (next < 0) next = spreads.length - 1;
-  if (next >= spreads.length) next = 0;
-  selectSpread(next);
+  let newIndex = appState.activeSpreadIndex + delta;
+  if (newIndex >= 0 && newIndex < spreads.length) {
+    appState.activeSpreadIndex = newIndex;
+    renderPortalSpreadViewer(project);
+  } else if (newIndex < 0) {
+    showToast("Already at the first spread.");
+  } else {
+    showToast("Reached the final spread of the album.");
+  }
 }
 
 function openSpreadRevisionModal() {
   const project = getProject(appState.activeProjectId) || appState.projects[0];
-  if (!project) {
-    showToast("No active project loaded.");
-    return;
-  }
+  if (!project) return;
   const spreads = getProjectSpreads(project.id);
   if (spreads.length === 0) {
-    showToast("No album spreads available to request revisions on.");
+    showToast("No spreads available to request revisions on.");
     return;
   }
-
   const currentSpread = spreads[appState.activeSpreadIndex] || spreads[0];
-  const headingEl = document.getElementById('modalRevisionSpreadHeading');
-  const badgeEl = document.getElementById('revisionModalSpreadBadge');
-  const titleEl = document.getElementById('revisionModalSpreadTitle');
-  const inputInstructions = document.getElementById('inputModalRevisionInstructions');
-  const inputAuthor = document.getElementById('inputModalRevisionAuthor');
 
-  if (headingEl) headingEl.textContent = `Request Revision: Spread ${String(appState.activeSpreadIndex + 1).padStart(2, '0')}`;
+  const head = document.getElementById('modalRevisionSpreadHeading');
+  if (head) head.textContent = `Spread ${appState.activeSpreadIndex + 1}: ${currentSpread.title}`;
+
+  const badgeEl = document.getElementById('revisionModalSpreadBadge');
   if (badgeEl) badgeEl.textContent = `Spread ${String(appState.activeSpreadIndex + 1).padStart(2, '0')} of ${String(spreads.length).padStart(2, '0')}`;
+
+  const titleEl = document.getElementById('revisionModalSpreadTitle');
   if (titleEl) titleEl.textContent = currentSpread.title;
-  if (inputInstructions) inputInstructions.value = '';
+
+  const inputAuthor = document.getElementById('inputModalRevisionAuthor');
   if (inputAuthor) {
-    const clientFirstName = project.clientName.split('&')[0].trim();
-    inputAuthor.value = `${clientFirstName} (Client)`;
+    inputAuthor.value = project.clientName.split('&')[0].trim() + " (Client)";
+  }
+
+  const inputInstructions = document.getElementById('inputModalRevisionInstructions');
+  if (inputInstructions) {
+    inputInstructions.value = '';
+    inputInstructions.focus();
   }
 
   openModal('modalRequestRevision');
 }
 
 function handleSpreadRevisionModalSubmit(e) {
-  if (e && typeof e.preventDefault === 'function') e.preventDefault();
-  const inputInstructions = document.getElementById('inputModalRevisionInstructions');
-  const inputAuthor = document.getElementById('inputModalRevisionAuthor');
+  if (e && e.preventDefault) e.preventDefault();
 
-  const instructions = (inputInstructions ? inputInstructions.value : '').trim();
-  const author = (inputAuthor ? inputAuthor.value : '').trim();
+  const project = getProject(appState.activeProjectId) || appState.projects[0];
+  if (!project) return;
+  const spreads = getProjectSpreads(project.id);
+  const currentSpread = spreads[appState.activeSpreadIndex];
+  if (!currentSpread) return;
+
+  const author = (document.getElementById('inputModalRevisionAuthor')?.value || 'Client').trim();
+  const instructions = (document.getElementById('inputModalRevisionInstructions')?.value || '').trim();
 
   if (!instructions) {
-    showToast("Please provide specific revision instructions.");
+    showToast("Please enter your revision instructions before submitting.");
     return;
   }
 
-  const project = getProject(appState.activeProjectId) || appState.projects[0];
-  if (!project) return;
-
-  const spreads = getProjectSpreads(project.id);
-  if (spreads.length === 0) return;
-
-  const currentSpread = spreads[appState.activeSpreadIndex] || spreads[0];
   if (!Array.isArray(currentSpread.notes)) {
     currentSpread.notes = [];
   }
 
-  const newRevision = {
-    id: "rev_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
-    author: author || `${project.clientName.split(' ')[0]} (Client)`,
+  const newNote = {
+    id: "n_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+    author: author,
     text: instructions,
     resolved: false,
-    time: "Just now",
-    timestamp: new Date().toISOString()
-  };
-
-  currentSpread.notes.push(newRevision);
-
-  // Update stage to Revisions if was Client Review or Approved
-  if (project.stage !== 'Revisions' && project.stage !== 'Delivered') {
-    project.stage = 'Revisions';
-  }
-
-  addProjectActivity(project.id, "Spread Revision Added", `Client requested revision on Spread ${appState.activeSpreadIndex + 1} ("${currentSpread.title}"): "${instructions}"`);
-
-  saveData();
-  closeModal('modalRequestRevision');
-  renderPortalSpreadViewer(project);
-  updateBadgesAndKPIs();
-  renderDashboard();
-  renderProjectWorkspace();
-  showToast(`Revision request added for Spread ${appState.activeSpreadIndex + 1} ✓`);
-}
-
-function addSpreadComment() {
-  const input = document.getElementById('inputSpreadComment');
-  const text = input ? input.value.trim() : '';
-  if (!text) {
-    showToast("Please enter a revision request instruction.");
-    return;
-  }
-
-  const project = getProject(appState.activeProjectId) || appState.projects[0];
-  if (!project) return;
-
-  const spreads = getProjectSpreads(project.id);
-  if (spreads.length === 0) {
-    showToast("No album spreads available to comment on.");
-    return;
-  }
-
-  const currentSpread = spreads[appState.activeSpreadIndex] || spreads[0];
-  if (!Array.isArray(currentSpread.notes)) {
-    currentSpread.notes = [];
-  }
-
-  const clientFirstName = project.clientName.split('&')[0].trim();
-  const newNote = {
-    id: "rev_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
-    author: `${clientFirstName} (Client)`,
-    text: text,
-    resolved: false,
-    time: "Just now",
-    timestamp: new Date().toISOString()
+    time: formatDate(new Date().toISOString().split('T')[0])
   };
 
   currentSpread.notes.push(newNote);
 
-  // Update project stage to Revisions if was approved or review
-  if (project.stage !== 'Revisions' && project.stage !== 'Delivered') {
+  // Update project stage if in client review
+  if (project.stage === 'Client Review' || project.stage === 'Album Design') {
     project.stage = 'Revisions';
   }
 
-  addProjectActivity(project.id, "Spread Revision Added", `Revision request posted on Spread ${appState.activeSpreadIndex + 1}: "${text}"`);
+  addProjectActivity(project.id, "Spread Revision Requested", `${author} requested adjustments on ${currentSpread.badge || 'Spread'}: "${instructions}"`);
 
   saveData();
+  closeModal('modalRequestRevision');
+  renderAllViews();
+  showToast(`✓ Revision request recorded on Spread ${appState.activeSpreadIndex + 1}!`);
+}
+
+function addSpreadComment() {
+  const input = document.getElementById('inputSpreadComment');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  const project = getProject(appState.activeProjectId) || appState.projects[0];
+  if (!project) return;
+
+  const spreads = getProjectSpreads(project.id);
+  const currentSpread = spreads[appState.activeSpreadIndex];
+  if (!currentSpread) return;
+
+  if (!Array.isArray(currentSpread.notes)) {
+    currentSpread.notes = [];
+  }
+
+  const isClient = (appState.activeView === 'portal');
+  const authorName = isClient ? (project.clientName.split('&')[0].trim() + " (Client)") : "Studio Team";
+
+  const newNote = {
+    id: "n_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+    author: authorName,
+    text: text,
+    resolved: false,
+    time: formatDate(new Date().toISOString().split('T')[0])
+  };
+
+  currentSpread.notes.push(newNote);
+
+  addProjectActivity(project.id, "Spread Comment Posted", `${authorName} commented on ${currentSpread.title}: "${text}"`);
+
   input.value = '';
-  renderPortalSpreadViewer(project);
-  updateBadgesAndKPIs();
-  renderDashboard();
-  renderProjectWorkspace();
-  showToast(`Revision request added to Spread ${appState.activeSpreadIndex + 1}`);
+  saveData();
+  renderAllViews();
+  showToast(`Feedback posted for Spread ${appState.activeSpreadIndex + 1}!`);
 }
 
 function toggleSpreadNoteResolved(spreadId, noteId) {
-  const spread = appState.albumSpreads.find(s => s.id === spreadId);
-  if (!spread || !spread.notes) return;
+  const spread = (appState.albumSpreads || []).find(s => s.id === spreadId);
+  if (!spread || !Array.isArray(spread.notes)) return;
 
   const note = spread.notes.find(n => n.id === noteId);
   if (note) {
     note.resolved = !note.resolved;
-    if (spread.projectId) {
-      addProjectActivity(spread.projectId, "Note Status Changed", `Revision note on Spread "${spread.title}" marked as ${note.resolved ? 'resolved' : 'unresolved'}`);
-    }
+    addProjectActivity(spread.projectId, "Note Status Changed", `Revision request "${note.text.substring(0, 30)}..." marked as ${note.resolved ? 'Resolved' : 'Open'}`);
     saveData();
-    renderPortalSpreadViewer();
-    renderDashboardSpreadRevisions();
-    renderProjectWorkspace();
-    showToast(note.resolved ? "Revision note marked as resolved ✓" : "Revision note reopened");
+    renderAllViews();
+    showToast(note.resolved ? "✓ Note marked as Resolved!" : "Note marked as Open Revision.");
   }
 }
 
 function confirmDeleteSpreadNote(spreadId, noteId) {
-  const spread = appState.albumSpreads.find(s => s.id === spreadId);
-  if (!spread || !spread.notes) return;
-
-  const note = spread.notes.find(n => n.id === noteId);
-  if (!note) return;
+  const spread = (appState.albumSpreads || []).find(s => s.id === spreadId);
+  if (!spread || !Array.isArray(spread.notes)) return;
 
   showDeleteConfirmation({
-    title: "Delete Revision Request",
-    heading: `Delete Revision Note?`,
-    message: `Are you sure you want to remove this revision note by <strong>${note.author}</strong> from Spread "${spread.title}":<br><br><em>"${note.text}"</em>`,
-    warning: null,
+    title: "Delete Feedback Note",
+    heading: "Delete Spread Feedback?",
+    message: "Are you sure you want to permanently remove this feedback comment from this spread?",
+    warning: "This will delete the note history.",
     onConfirm: () => {
       spread.notes = spread.notes.filter(n => n.id !== noteId);
-      if (spread.projectId) {
-        addProjectActivity(spread.projectId, "Note Deleted", `Revision note removed from Spread "${spread.title}"`);
-      }
+      addProjectActivity(spread.projectId, "Note Deleted", "A spread feedback note was removed.");
       saveData();
-      renderPortalSpreadViewer();
-      renderDashboardSpreadRevisions();
-      renderProjectWorkspace();
-      updateBadgesAndKPIs();
-      showToast("Revision note deleted.");
+      renderAllViews();
+      showToast("Feedback note removed.");
     }
   });
 }
 
-function openAlbumApprovalModal() {
-  const project = getProject(appState.activeProjectId) || appState.projects[0];
-  if (!project) return;
+function openAlbumApprovalModal(targetProjectId) {
+  const projId = targetProjectId || appState.activeProjectId;
+  const project = getProject(projId);
+  if (!project) {
+    showToast("Error: Album project record could not be found.");
+    return;
+  }
+
+  // Ensure active state matches the project being approved
+  appState.activeProjectId = project.id;
+  if (project.clientId) {
+    appState.activeClientId = project.clientId;
+  }
 
   const spreads = getProjectSpreads(project.id);
   const unresolvedRevisions = [];
@@ -2698,7 +3480,8 @@ function openAlbumApprovalModal() {
 
   const modalApproveText = document.getElementById('modalApproveAlbumText');
   if (modalApproveText) {
-    modalApproveText.innerHTML = `You are authorizing final archival approval for <strong>${project.clientName} — ${project.title}</strong> (${project.package}). This will officially lock the spread layout and commission our master print binders to commence handcrafted layflat fabrication.`;
+    const spreadInfo = spreads.length > 0 ? `all ${spreads.length} album spreads` : 'the album package';
+    modalApproveText.innerHTML = `You are authorizing final archival approval for <strong>${project.clientName} — ${project.title}</strong> (${project.package}, ${spreadInfo}). This will officially lock the spread layout and commission our master print binders to commence handcrafted layflat fabrication.`;
   }
 
   const warningContainer = document.getElementById('modalApproveWarningContainer');
@@ -2712,10 +3495,10 @@ function openAlbumApprovalModal() {
         <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; margin-bottom: 16px; text-align: left;">
           <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #b45309; font-size: 13.5px; margin-bottom: 6px;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            <span>Unresolved Revision Requests Pending (${unresolvedRevisions.length})</span>
+            <span>Notice: Unresolved Revision Notes Pending (${unresolvedRevisions.length})</span>
           </div>
           <p style="font-size: 12.5px; color: #78350f; line-height: 1.45; margin-bottom: 8px;">
-            This album layout currently has pending revision requests that must be addressed by our studio team before finalizing print production:
+            This album layout has open change notes. Approving now will confirm that you are satisfied with the current spread layouts as rendered:
           </p>
           <ul style="font-size: 12px; color: #92400e; margin: 0 0 0 18px; padding: 0; line-height: 1.5;">
             ${unresolvedRevisions.map(r => `<li><strong>Spread ${String(r.spreadIndex).padStart(2, '0')} (${r.spreadTitle}):</strong> "${r.text}" <span style="color:#78350f;">— ${r.author}</span></li>`).join('')}
@@ -2724,14 +3507,15 @@ function openAlbumApprovalModal() {
       `;
     }
     if (confirmBtn) {
-      confirmBtn.disabled = true;
-      confirmBtn.style.opacity = '0.5';
-      confirmBtn.style.cursor = 'not-allowed';
-      confirmBtn.innerHTML = `Cannot Approve (${unresolvedRevisions.length} Revisions Pending)`;
+      confirmBtn.disabled = false;
+      confirmBtn.style.opacity = '1';
+      confirmBtn.style.cursor = 'pointer';
+      confirmBtn.innerHTML = `Authorize & Approve Album Layout`;
+      confirmBtn.onclick = () => confirmAlbumApproval(project.id);
     }
     if (checkboxConfirm) {
       checkboxConfirm.checked = false;
-      checkboxConfirm.disabled = true;
+      checkboxConfirm.disabled = false;
     }
   } else {
     if (warningContainer) {
@@ -2742,7 +3526,8 @@ function openAlbumApprovalModal() {
       confirmBtn.disabled = false;
       confirmBtn.style.opacity = '1';
       confirmBtn.style.cursor = 'pointer';
-      confirmBtn.innerHTML = `Authorize & Approve Now`;
+      confirmBtn.innerHTML = `Authorize & Approve Album Layout`;
+      confirmBtn.onclick = () => confirmAlbumApproval(project.id);
     }
     if (checkboxConfirm) {
       checkboxConfirm.checked = true;
@@ -2753,32 +3538,37 @@ function openAlbumApprovalModal() {
   openModal('modalApproveAlbum');
 }
 
-function confirmAlbumApproval() {
-  const project = getProject(appState.activeProjectId) || appState.projects[0];
-  if (!project) return;
-
-  const spreads = getProjectSpreads(project.id);
-  const hasUnresolved = spreads.some(s => Array.isArray(s.notes) && s.notes.some(n => !n.resolved));
-  if (hasUnresolved) {
-    showToast("⚠️ Cannot approve album while unresolved revision requests remain pending.");
+function confirmAlbumApproval(targetProjectId) {
+  const projId = targetProjectId || appState.activeProjectId;
+  const project = getProject(projId);
+  if (!project) {
+    showToast("Error: Project record could not be found for approval.");
     return;
   }
 
   const checkApprove = document.getElementById('checkApproveConfirm');
   if (checkApprove && !checkApprove.checked) {
-    showToast("Please confirm the authorization checkbox before submitting.");
+    showToast("Please check the authorization box to confirm your approval.");
     return;
   }
 
   project.stage = 'Approved';
   project.approvedAt = new Date().toISOString();
 
-  addProjectActivity(project.id, "Album Approved", `Album officially authorized and approved by ${project.clientName} for fine-art layflat print fabrication.`);
+  // Also update corresponding client status if client exists
+  if (project.clientId) {
+    const client = getClient(project.clientId);
+    if (client) {
+      client.status = 'Approved';
+    }
+  }
+
+  addProjectActivity(project.id, "Album Approved", `Album layout officially authorized and approved by ${project.clientName} for fine-art layflat print fabrication.`);
 
   saveData();
   closeModal('modalApproveAlbum');
   renderAllViews();
-  showToast(`🎉 Album for "${project.title}" Officially Approved! Production has commenced.`);
+  showToast(`🎉 Congratulations! Album layout for ${project.clientName} officially approved for fine-art print!`);
 }
 
 function renderPortalGallery(project) {
@@ -2816,21 +3606,44 @@ function renderPortalGallery(project) {
       btnFilterSelected.innerHTML = `✓ Showing Selected (${selectedCount})`;
     } else {
       btnFilterSelected.className = 'btn btn-secondary btn-sm';
-      btnFilterSelected.innerHTML = `★ View Selected Only`;
+      btnFilterSelected.innerHTML = `★ View Selected Only (${selectedCount})`;
     }
   }
 
   const selectionBadge = document.getElementById('portalSelectionStatusBadge');
   if (selectionBadge) {
-    if (selectedCount >= 4) {
+    if (project.photoSelectionConfirmed) {
       selectionBadge.className = 'badge badge-approved';
-      selectionBadge.textContent = 'Selection Target Met ✓';
+      selectionBadge.textContent = '✓ Selection Confirmed & Submitted';
     } else if (selectedCount > 0) {
-      selectionBadge.className = 'badge badge-scheduled';
-      selectionBadge.textContent = 'Selection in Progress';
+      selectionBadge.className = 'badge badge-selection';
+      selectionBadge.textContent = `${selectedCount} Selected (Draft)`;
     } else {
       selectionBadge.className = 'badge badge-review';
       selectionBadge.textContent = 'Awaiting Client Picks';
+    }
+  }
+
+  // Gallery Confirmed Banner
+  const confBanner = document.getElementById('portalGalleryConfirmedBanner');
+  if (confBanner) {
+    if (project.photoSelectionConfirmed) {
+      confBanner.style.display = 'block';
+      confBanner.innerHTML = `
+        <div class="portal-gallery-confirmed-banner">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:20px;">✓</span>
+            <div>
+              <strong style="color:#065f46; font-size:13.5px; display:block;">Photo Selections Confirmed & Submitted to Studio</strong>
+              <span style="color:#047857; font-size:12px;">You have selected ${selectedCount} curated photographs on ${project.photoSelectionSubmittedAt ? formatDate(project.photoSelectionSubmittedAt.split('T')[0]) : 'file'}. Our master editing team is utilizing these selections for album curation and fine-art color grading.</span>
+            </div>
+          </div>
+          <span class="badge badge-approved" style="font-size:11px;">Submitted ✓</span>
+        </div>
+      `;
+    } else {
+      confBanner.style.display = 'none';
+      confBanner.innerHTML = '';
     }
   }
 
@@ -2859,7 +3672,7 @@ function renderPortalGallery(project) {
           <div style="font-size: 32px; margin-bottom: 10px;">⭐</div>
           <h4 style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">No Selected Photographs in this Category</h4>
           <p style="font-size: 13px; color: var(--text-secondary); max-width: 460px; margin: 0 auto 16px; line-height:1.5;">
-            Click the "+" button on any photograph to select favorites for your wedding album curation.
+            Click the "+ Pick" button on any photograph to select favorites for your wedding album curation.
           </p>
           <button class="btn btn-secondary btn-sm" onclick="toggleFilterSelectedPhotos()">Show All Photographs</button>
         </div>
@@ -2872,7 +3685,7 @@ function renderPortalGallery(project) {
         <div style="font-size: 36px; margin-bottom: 12px;">📸</div>
         <h4 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">No Gallery Photographs Yet</h4>
         <p style="font-size: 13px; color: var(--text-secondary); max-width: 460px; margin: 0 auto; line-height:1.5;">
-          Curated highlight photographs for <strong>${project.title}</strong> (${project.clientName}) will appear here once uploaded by our studio team.
+          Curated highlight photographs for <strong>${project.title}</strong> (${project.clientName}) will appear here once published by our studio team.
         </p>
       </div>
     `;
@@ -2882,7 +3695,7 @@ function renderPortalGallery(project) {
   grid.innerHTML = filtered.map(item => {
     const isSelected = project.selectedPhotoIds.includes(item.id);
     return `
-      <div class="gallery-photo-card ${isSelected ? 'selected' : ''}" onclick="openLightbox('${item.img}', '${item.title} — ${item.tag}')" title="Click to enlarge photograph">
+      <div class="gallery-photo-card ${isSelected ? 'selected' : ''}" onclick="openLightbox('${item.img}', '${item.title} — ${item.tag}')" title="Click to view high resolution photograph">
         <button class="photo-select-btn" onclick="toggleSelectPhoto('${item.id}', event)" title="${isSelected ? 'Deselect photograph' : 'Select photograph for album curation'}">
           ${isSelected ? '✓' : '+'}
         </button>
@@ -2915,11 +3728,12 @@ function toggleSelectPhoto(photoId, event) {
     showToast("Photograph deselected");
   } else {
     project.selectedPhotoIds.push(photoId);
-    showToast("Photograph added to album selections ✓");
+    showToast("Photograph added to album picks ✓");
   }
 
   saveData();
   renderPortalGallery(project);
+  updateBadgesAndKPIs();
 }
 
 function toggleFilterSelectedPhotos() {
@@ -2941,11 +3755,14 @@ function confirmPhotoSelection() {
     return;
   }
 
+  project.photoSelectionConfirmed = true;
+  project.photoSelectionSubmittedAt = new Date().toISOString();
+
   addProjectActivity(project.id, "Photo Selection Submitted", `Client confirmed selection of ${count} curated photographs for album layout design.`);
 
   if (project.stage === 'Photo Selection') {
     project.stage = 'Editing';
-    addProjectActivity(project.id, "Stage Changed", `Production stage advanced to 'Editing' following client photo selection.`);
+    addProjectActivity(project.id, "Stage Changed", "Production stage advanced to 'Editing' following client photo selection.");
   }
 
   saveData();

@@ -56,7 +56,7 @@ export function PageHeader({
       {breadcrumbs && <div className="mb-2.5">{breadcrumbs}</div>}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-semibold text-charcoal tracking-tight">
               {title}
             </h1>

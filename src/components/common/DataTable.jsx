@@ -24,13 +24,22 @@ export function TableBody({ children, className }) {
 }
 
 export function TableRow({ children, className, hover = true, onClick }) {
+  const handleKeyDown = (e) => {
+    if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onClick(e);
+    }
+  };
+
   return (
     <tr
       onClick={onClick}
+      onKeyDown={onClick ? handleKeyDown : undefined}
+      tabIndex={onClick ? 0 : undefined}
       className={cn(
         'transition-colors',
         hover && 'hover:bg-ivory-50/80',
-        onClick && 'cursor-pointer',
+        onClick && 'cursor-pointer focus:outline-none focus-visible:bg-ivory-100 focus-visible:ring-1 focus-visible:ring-terracotta/40',
         className
       )}
     >

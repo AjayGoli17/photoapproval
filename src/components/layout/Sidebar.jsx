@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -19,6 +19,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { cn } from '../../utils/formatters';
+import { lockBodyScroll, unlockBodyScroll } from '../common/Modal';
 
 const WORKSPACE_NAV = [
   { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -44,6 +45,24 @@ export function Sidebar({
   onCloseMobile,
 }) {
   const location = useLocation();
+
+  // Manage mobile drawer scroll lock & Escape listener
+  useEffect(() => {
+    if (!isMobileOpen) return;
+    lockBodyScroll();
+
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        onCloseMobile();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      unlockBodyScroll();
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMobileOpen, onCloseMobile]);
 
   const renderNavGroup = (title, items) => (
     <div className="py-2">
@@ -177,14 +196,19 @@ export function Sidebar({
           isCollapsed ? 'w-20' : 'w-64'
         )}
       >
-        <div className={cn('fixed top-0 bottom-0 transition-all duration-200', isCollapsed ? 'w-20' : 'w-64')}>
+        <div className={cn('fixed top-0 bottom-0 left-0 transition-all duration-200', isCollapsed ? 'w-20' : 'w-64')}>
           {sidebarContent}
         </div>
       </aside>
 
       {/* Mobile Drawer */}
       {isMobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Studio navigation menu"
+          className="fixed inset-0 z-50 md:hidden"
+        >
           <div
             className="fixed inset-0 bg-charcoal-900/40 backdrop-blur-sm transition-opacity"
             onClick={onCloseMobile}

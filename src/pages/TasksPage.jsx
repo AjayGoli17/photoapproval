@@ -25,6 +25,7 @@ import { Button } from '../components/common/Button';
 import { Badge, PriorityBadge } from '../components/common/Badge';
 import { Avatar } from '../components/common/Avatar';
 import { SearchInput } from '../components/common/SearchInput';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { TaskModal } from '../components/modals/TaskModal';
 import { formatDate } from '../utils/formatters';
 
@@ -36,7 +37,7 @@ const KANBAN_COLUMNS = [
 ];
 
 export function TasksPage() {
-  const { tasks, projects, team, updateTask, deleteTask, toggleTaskComplete } = useStudioData();
+  const { tasks, projects, team, updateTask, deleteTask, deleteAllTasks, toggleTaskComplete } = useStudioData();
   const toast = useToast();
 
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'list'
@@ -50,6 +51,8 @@ export function TasksPage() {
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
 
   // Helper date calculations
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -132,10 +135,7 @@ export function TasksPage() {
   };
 
   const handleDeleteTask = (taskId, title) => {
-    if (window.confirm(`Are you sure you want to delete task "${title}"?`)) {
-      deleteTask(taskId);
-      toast.success('Task Deleted', `Removed task "${title}"`);
-    }
+    setTaskToDelete({ id: taskId, title });
   };
 
   return (
@@ -145,15 +145,27 @@ export function TasksPage() {
         subtitle="Coordinate darkroom processing, color grading batches, culling, and client proof deliverables."
         badge={<Badge variant="terracotta">{tasks.length} Total Tasks</Badge>}
         actions={
-          <Button
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={() => {
-              setEditingTask(null);
-              setIsModalOpen(true);
-            }}
-          >
-            Create Task
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Trash2 className="w-4 h-4 text-rose" />}
+              onClick={() => setIsDeleteAllOpen(true)}
+              disabled={tasks.length === 0}
+              className="text-rose hover:bg-rose-light hover:border-rose/30"
+            >
+              Delete All ({tasks.length})
+            </Button>
+            <Button
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={() => {
+                setEditingTask(null);
+                setIsModalOpen(true);
+              }}
+            >
+              Create Task
+            </Button>
+          </div>
         }
       />
 
@@ -437,7 +449,7 @@ export function TasksPage() {
         /* List View */
         <Card className="overflow-hidden border border-border">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[720px]">
               <thead>
                 <tr className="border-b border-border bg-ivory-50 text-[11px] font-semibold text-charcoal-500 uppercase tracking-wider">
                   <th className="py-3 px-4 w-10">Done</th>
@@ -589,6 +601,44 @@ export function TasksPage() {
           setEditingTask(null);
         }}
         task={editingTask}
+      />
+
+      {/* Delete All Tasks Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteAllOpen}
+        onClose={() => setIsDeleteAllOpen(false)}
+        onConfirm={() => {
+          const count = deleteAllTasks();
+          setIsDeleteAllOpen(false);
+          toast.success('Tasks Deleted', `Successfully deleted all ${count} tasks.`);
+        }}
+        title="Delete All Tasks?"
+        message={`Are you sure you want to delete all ${tasks.length} studio tasks? This action cannot be undone.`}
+        confirmLabel={`Delete All (${tasks.length})`}
+        cancelLabel="Cancel"
+        isDestructive={true}
+      />
+
+      {/* Delete Single Task Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(taskToDelete)}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={() => {
+          if (!taskToDelete) return;
+          try {
+            deleteTask(taskToDelete.id);
+            toast.success('Task Deleted', `Removed task "${taskToDelete.title}"`);
+          } catch (err) {
+            toast.error('Deletion Failed', err.message);
+          } finally {
+            setTaskToDelete(null);
+          }
+        }}
+        title="Delete Task?"
+        message={`Are you sure you want to delete task "${taskToDelete?.title || ''}"? This action cannot be undone.`}
+        confirmLabel="Delete Task"
+        cancelLabel="Cancel"
+        isDestructive={true}
       />
     </div>
   );

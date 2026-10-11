@@ -28,10 +28,11 @@ import { Button } from '../components/common/Button';
 import { SearchInput } from '../components/common/SearchInput';
 import { ProofingReviewModal } from '../components/modals/ProofingReviewModal';
 import { DeliverableModal } from '../components/modals/DeliverableModal';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { formatDate } from '../utils/formatters';
 
 export function DeliverablesPage() {
-  const { deliverables, projects, clients, events, deleteDeliverable } = useStudioData();
+  const { deliverables, projects, clients, events, deleteDeliverable, deleteAllDeliverables } = useStudioData();
   const toast = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,6 +45,8 @@ export function DeliverablesPage() {
   const [activeProofingDeliv, setActiveProofingDeliv] = useState(null);
   const [isDeliverableModalOpen, setIsDeliverableModalOpen] = useState(false);
   const [editingDeliverable, setEditingDeliverable] = useState(null);
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [deliverableToDelete, setDeliverableToDelete] = useState(null);
 
   // Enriched deliverables
   const enrichedDeliverables = useMemo(() => {
@@ -109,10 +112,7 @@ export function DeliverablesPage() {
   }, [enrichedDeliverables, searchTerm, statusFilter, stageFilter, typeFilter]);
 
   const handleDelete = (deliv) => {
-    if (window.confirm(`Are you sure you want to remove deliverable "${deliv.title}"?`)) {
-      deleteDeliverable(deliv.id);
-      toast.success('Deliverable Removed', `Deleted ${deliv.title}`);
-    }
+    setDeliverableToDelete(deliv);
   };
 
   return (
@@ -122,15 +122,27 @@ export function DeliverablesPage() {
         subtitle="Manage client photo selection galleries, album proof signoffs, digital master archives, and revision directives."
         badge={<Badge variant="sage">{deliverables.length} Deliverable Collections</Badge>}
         actions={
-          <Button
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={() => {
-              setEditingDeliverable(null);
-              setIsDeliverableModalOpen(true);
-            }}
-          >
-            Publish Deliverable
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Trash2 className="w-4 h-4 text-rose" />}
+              onClick={() => setIsDeleteAllOpen(true)}
+              disabled={deliverables.length === 0}
+              className="text-rose hover:bg-rose-light hover:border-rose/30"
+            >
+              Delete All ({deliverables.length})
+            </Button>
+            <Button
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={() => {
+                setEditingDeliverable(null);
+                setIsDeliverableModalOpen(true);
+              }}
+            >
+              Publish Deliverable
+            </Button>
+          </div>
         }
       />
 
@@ -437,7 +449,7 @@ export function DeliverablesPage() {
         /* Table View */
         <Card className="overflow-hidden border border-border">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-border bg-ivory-50 text-[11px] font-semibold text-charcoal-500 uppercase tracking-wider">
                   <th className="py-3 px-4">Deliverable Package</th>
@@ -543,6 +555,45 @@ export function DeliverablesPage() {
           setEditingDeliverable(null);
         }}
         deliverable={editingDeliverable}
+      />
+
+      {/* Delete All Deliverables Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteAllOpen}
+        onClose={() => setIsDeleteAllOpen(false)}
+        onConfirm={() => {
+          const count = deliverables.length;
+          deleteAllDeliverables();
+          setIsDeleteAllOpen(false);
+          setActiveProofingDeliv(null);
+          toast.success('Deliverables Cleared', `Successfully deleted all ${count} deliverables.`);
+        }}
+        title="Delete All Deliverables?"
+        message={`Are you sure you want to delete all ${deliverables.length} deliverables? This will remove all proofs, selections, and client galleries. This action cannot be undone.`}
+        confirmLabel={`Delete All (${deliverables.length})`}
+        isDestructive={true}
+      />
+
+      {/* Delete Single Deliverable Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(deliverableToDelete)}
+        onClose={() => setDeliverableToDelete(null)}
+        onConfirm={() => {
+          if (!deliverableToDelete) return;
+          try {
+            deleteDeliverable(deliverableToDelete.id);
+            toast.success('Deliverable Removed', `Deleted ${deliverableToDelete.title}`);
+          } catch (err) {
+            toast.error('Deletion Failed', err.message);
+          } finally {
+            setDeliverableToDelete(null);
+          }
+        }}
+        title="Remove Deliverable?"
+        message={`Are you sure you want to remove deliverable "${deliverableToDelete?.title || ''}"? This action cannot be undone.`}
+        confirmLabel="Remove Deliverable"
+        cancelLabel="Cancel"
+        isDestructive={true}
       />
     </div>
   );

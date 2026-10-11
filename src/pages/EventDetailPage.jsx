@@ -384,7 +384,7 @@ export function EventDetailPage() {
           }
         />
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm min-w-[620px]">
             <thead className="bg-ivory-50 border-b border-border text-xs uppercase tracking-wider text-charcoal-500 font-semibold">
               <tr>
                 <th className="p-4">Invoice #</th>

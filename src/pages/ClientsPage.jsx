@@ -28,7 +28,7 @@ import { ClientModal } from '../components/modals/ClientModal';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
 export function ClientsPage() {
-  const { clients, events, getClientFinancials, deleteClient } = useStudioData();
+  const { clients, events, getClientFinancials, deleteClient, deleteAllClients } = useStudioData();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -44,6 +44,7 @@ export function ClientsPage() {
   // Delete confirmation state
   const [clientToDelete, setClientToDelete] = useState(null);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
 
   const categories = [
     'All',
@@ -120,12 +121,24 @@ export function ClientsPage() {
         subtitle="Manage client relationships, wedding couples, luxury commercial brands, and booking contracts."
         badge={<Badge variant="terracotta">{clients.length} Total Profiles</Badge>}
         actions={
-          <Button
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={handleOpenCreate}
-          >
-            Add Client
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Trash2 className="w-4 h-4 text-rose" />}
+              onClick={() => setIsDeleteAllOpen(true)}
+              disabled={clients.length === 0}
+              className="text-rose hover:bg-rose-light hover:border-rose/30"
+            >
+              Delete All ({clients.length})
+            </Button>
+            <Button
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={handleOpenCreate}
+            >
+              Add Client
+            </Button>
+          </div>
         }
       />
 
@@ -141,12 +154,12 @@ export function ClientsPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Status Tabs */}
-          <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-border">
+          <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-border overflow-x-auto max-w-full">
             {statuses.map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
                   statusFilter === st
                     ? 'bg-terracotta text-white shadow-2xs'
                     : 'text-charcoal-600 hover:text-charcoal hover:bg-ivory-100'
@@ -197,7 +210,7 @@ export function ClientsPage() {
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
+            <table className="w-full text-left text-sm border-collapse min-w-[700px]">
               <thead className="bg-ivory-50 border-b border-border text-xs uppercase tracking-wider text-charcoal-500 font-semibold">
                 <tr>
                   <th className="p-4">Client</th>
@@ -350,6 +363,22 @@ export function ClientsPage() {
         confirmLabel={deleteErrorMessage ? 'Understood' : 'Delete Client'}
         cancelLabel={deleteErrorMessage ? 'Close' : 'Cancel'}
         isDestructive={!deleteErrorMessage}
+      />
+
+      {/* Delete All Clients Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteAllOpen}
+        onClose={() => setIsDeleteAllOpen(false)}
+        onConfirm={() => {
+          const count = deleteAllClients();
+          setIsDeleteAllOpen(false);
+          toast.success('Clients Deleted', `Successfully deleted all ${count} client records.`);
+        }}
+        title="Delete All Clients?"
+        message={`Are you sure you want to delete all ${clients.length} client records? Associated event bookings and workspaces will be safely unlinked. This action cannot be undone.`}
+        confirmLabel={`Delete All (${clients.length})`}
+        cancelLabel="Cancel"
+        isDestructive={true}
       />
     </div>
   );

@@ -234,7 +234,7 @@ export function InvoiceDetailPage() {
 
         {/* Itemized Line Items Table (Req 5) */}
         <div className="overflow-x-auto pt-2">
-          <table className="w-full text-left text-sm border-collapse">
+          <table className="w-full text-left text-sm border-collapse min-w-[500px]">
             <thead className="border-b border-border text-xs uppercase tracking-wider text-charcoal-500 bg-ivory-50/70">
               <tr>
                 <th className="py-2.5 px-3 font-semibold">Description</th>

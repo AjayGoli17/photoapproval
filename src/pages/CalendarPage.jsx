@@ -340,15 +340,17 @@ export function CalendarPage() {
       {/* Month View */}
       {viewMode === 'month' && (
         <Card className="overflow-hidden border border-border">
-          {/* Day of Week Headers */}
-          <div className="grid grid-cols-7 border-b border-border bg-ivory-50 text-center py-2.5 text-xs font-semibold text-charcoal-500 uppercase tracking-wider">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-              <div key={d}>{d}</div>
-            ))}
-          </div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[650px]">
+              {/* Day of Week Headers */}
+              <div className="grid grid-cols-7 border-b border-border bg-ivory-50 text-center py-2.5 text-xs font-semibold text-charcoal-500 uppercase tracking-wider">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                  <div key={d}>{d}</div>
+                ))}
+              </div>
 
-          {/* Month Days Grid */}
-          <div className="grid grid-cols-7 divide-x divide-y divide-border/60">
+              {/* Month Days Grid */}
+              <div className="grid grid-cols-7 divide-x divide-y divide-border/60">
             {monthDays.map((day) => {
               const dayItems = getItemsForDay(day);
               const inMonth = isSameMonth(day, currentDate);
@@ -406,6 +408,8 @@ export function CalendarPage() {
                 </div>
               );
             })}
+              </div>
+            </div>
           </div>
         </Card>
       )}
@@ -413,7 +417,8 @@ export function CalendarPage() {
       {/* Week View */}
       {viewMode === 'week' && (
         <Card className="overflow-hidden border border-border">
-          <div className="grid grid-cols-7 divide-x divide-border">
+          <div className="overflow-x-auto">
+            <div className="grid grid-cols-7 divide-x divide-border min-w-[650px]">
             {weekDays.map((day) => {
               const dayItems = getItemsForDay(day);
               const today = isToday(day);
@@ -464,6 +469,7 @@ export function CalendarPage() {
                 </div>
               );
             })}
+            </div>
           </div>
         </Card>
       )}

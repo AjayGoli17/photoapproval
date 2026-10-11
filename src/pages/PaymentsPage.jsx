@@ -14,19 +14,23 @@ import {
   Filter,
   CreditCard,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import { useStudioData } from '../context/StudioDataContext';
+import { useToast } from '../context/ToastContext';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { SearchInput } from '../components/common/SearchInput';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { RecordPaymentModal } from '../components/modals/RecordPaymentModal';
 import { InvoiceModal } from '../components/modals/InvoiceModal';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
 export function PaymentsPage() {
-  const { payments, clients, events, projects, metrics, getEventFinancials } = useStudioData();
+  const { payments, clients, events, projects, metrics, getEventFinancials, deleteAllPayments } = useStudioData();
+  const toast = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -37,6 +41,7 @@ export function PaymentsPage() {
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
@@ -151,6 +156,16 @@ export function PaymentsPage() {
         badge={<Badge variant="sage">{payments.length} Invoices On Record</Badge>}
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Trash2 className="w-4 h-4 text-rose" />}
+              onClick={() => setIsDeleteAllOpen(true)}
+              disabled={payments.length === 0}
+              className="text-rose hover:bg-rose-light hover:border-rose/30"
+            >
+              Delete All ({payments.length})
+            </Button>
             <Button
               variant="outline"
               leftIcon={<Plus className="w-4 h-4" />}
@@ -274,7 +289,7 @@ export function PaymentsPage() {
       {/* Invoices Table (Req 4A) */}
       <Card className="overflow-hidden border border-border">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[750px]">
             <thead>
               <tr className="border-b border-border bg-ivory-50 text-[11px] font-semibold text-charcoal-500 uppercase tracking-wider">
                 <th className="py-3 px-4">Invoice #</th>
@@ -400,6 +415,23 @@ export function PaymentsPage() {
       <InvoiceModal
         isOpen={isInvoiceModalOpen}
         onClose={() => setIsInvoiceModalOpen(false)}
+      />
+
+      {/* Delete All Invoices Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteAllOpen}
+        onClose={() => setIsDeleteAllOpen(false)}
+        onConfirm={() => {
+          const count = payments.length;
+          deleteAllPayments();
+          setIsDeleteAllOpen(false);
+          setSelectedInvoiceForPayment(null);
+          toast.success('Invoices Cleared', `Successfully deleted all ${count} invoices and payment records.`);
+        }}
+        title="Delete All Invoices & Payments?"
+        message={`Are you sure you want to delete all ${payments.length} invoices and payment records? This will clear all ledger entries, GST invoices, and transaction histories. This action cannot be undone.`}
+        confirmLabel={`Delete All (${payments.length})`}
+        isDestructive={true}
       />
     </div>
   );

@@ -27,7 +27,7 @@ import { EventModal } from '../components/modals/EventModal';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
 export function EventsPage() {
-  const { events, clients, team, getEventFinancials, deleteEvent } = useStudioData();
+  const { events, clients, team, getEventFinancials, deleteEvent, deleteAllEvents } = useStudioData();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -43,6 +43,7 @@ export function EventsPage() {
 
   // Delete confirmation
   const [eventToDelete, setEventToDelete] = useState(null);
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
 
   const statuses = ['All', 'Confirmed', 'In Progress', 'Inquiry', 'Quoted', 'Completed', 'Cancelled'];
 
@@ -120,12 +121,24 @@ export function EventsPage() {
         subtitle="Manage royal weddings, destination ceremonies, fashion editorial days, and commercial campaigns."
         badge={<Badge variant="sage">{events.length} Total Bookings</Badge>}
         actions={
-          <Button
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={handleOpenCreate}
-          >
-            Book New Event
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Trash2 className="w-4 h-4 text-rose" />}
+              onClick={() => setIsDeleteAllOpen(true)}
+              disabled={events.length === 0}
+              className="text-rose hover:bg-rose-light hover:border-rose/30"
+            >
+              Delete All ({events.length})
+            </Button>
+            <Button
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={handleOpenCreate}
+            >
+              Book New Event
+            </Button>
+          </div>
         }
       />
 
@@ -208,7 +221,7 @@ export function EventsPage() {
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
+            <table className="w-full text-left text-sm border-collapse min-w-[750px]">
               <thead className="bg-ivory-50 border-b border-border text-xs uppercase tracking-wider text-charcoal-500 font-semibold">
                 <tr>
                   <th className="p-4">Event & Type</th>
@@ -361,6 +374,22 @@ export function EventsPage() {
         title="Cancel & Delete Event Booking?"
         message={`Are you sure you want to delete ${eventToDelete?.title}? This will cancel the booking from the calendar and studio overview.`}
         confirmLabel="Delete Booking"
+        cancelLabel="Cancel"
+        isDestructive={true}
+      />
+
+      {/* Delete All Events Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteAllOpen}
+        onClose={() => setIsDeleteAllOpen(false)}
+        onConfirm={() => {
+          const count = deleteAllEvents();
+          setIsDeleteAllOpen(false);
+          toast.success('Events Deleted', `Successfully deleted all ${count} event bookings.`);
+        }}
+        title="Delete All Events?"
+        message={`Are you sure you want to delete all ${events.length} event bookings? Associated workspaces, deliverables, and invoices will be safely unlinked. This action cannot be undone.`}
+        confirmLabel={`Delete All (${events.length})`}
         cancelLabel="Cancel"
         isDestructive={true}
       />

@@ -15,6 +15,7 @@ import {
   Clock,
   Layers,
   FileText,
+  Trash2,
 } from 'lucide-react';
 import { useStudioData } from '../../context/StudioDataContext';
 import { useToast } from '../../context/ToastContext';
@@ -27,7 +28,7 @@ import { TaskModal } from '../modals/TaskModal';
 import { formatRelativeTime } from '../../utils/formatters';
 
 export function Header({ onOpenMobileNav, onOpenSearch }) {
-  const { activityLog, resetDemoData, settings } = useStudioData();
+  const { activityLog, resetDemoData, settings, clearActivityLog } = useStudioData();
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -37,6 +38,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
   const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isClearActivityOpen, setIsClearActivityOpen] = useState(false);
 
   // Quick Action Modal states
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
@@ -47,7 +49,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
   const profileRef = useRef(null);
   const actionsRef = useRef(null);
 
-  // Close dropdowns on outside click
+  // Close dropdowns on outside click or Escape key
   useEffect(() => {
     function handleClickOutside(event) {
       if (activityRef.current && !activityRef.current.contains(event.target)) {
@@ -60,8 +62,21 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
         setIsActionsOpen(false);
       }
     }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setIsActivityOpen(false);
+        setIsProfileOpen(false);
+        setIsActionsOpen(false);
+      }
+    }
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const handleResetData = () => {
@@ -97,7 +112,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-surface/90 backdrop-blur-md border-b border-border h-16 px-4 sm:px-6 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-20 bg-surface/90 backdrop-blur-md border-b border-border h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
       {/* Left section: mobile hamburger & contextual title */}
       <div className="flex items-center gap-3 min-w-0">
         <button
@@ -120,7 +135,8 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
         <button
           type="button"
           onClick={onOpenSearch}
-          className="w-full flex items-center justify-between px-3.5 py-1.5 text-xs sm:text-sm bg-ivory-100/80 hover:bg-ivory-200/80 border border-border rounded-xl text-charcoal-400 hover:text-charcoal-600 transition-colors shadow-subtle group"
+          aria-label="Open global search palette (Command+K)"
+          className="w-full flex items-center justify-between px-3.5 py-1.5 text-xs sm:text-sm bg-ivory-100/80 hover:bg-ivory-200/80 border border-border rounded-xl text-charcoal-400 hover:text-charcoal-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30 transition-colors shadow-subtle group"
         >
           <div className="flex items-center gap-2.5 truncate">
             <Search className="w-4 h-4 text-charcoal-400 group-hover:text-terracotta transition-colors flex-shrink-0" />
@@ -141,6 +157,8 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
             variant="primary"
             leftIcon={<Plus className="w-4 h-4" />}
             onClick={() => setIsActionsOpen(!isActionsOpen)}
+            aria-haspopup="menu"
+            aria-expanded={isActionsOpen}
             className="hidden sm:inline-flex"
           >
             New Record
@@ -151,16 +169,23 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
             onClick={() => setIsActionsOpen(!isActionsOpen)}
             className="sm:hidden"
             aria-label="Create new record"
+            aria-haspopup="menu"
+            aria-expanded={isActionsOpen}
           >
             <Plus className="w-4 h-4" />
           </Button>
 
           {isActionsOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-surface rounded-xl border border-border shadow-modal py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100">
+            <div
+              role="menu"
+              aria-label="Quick creation actions"
+              className="absolute right-0 mt-2 w-56 bg-surface rounded-xl border border-border shadow-modal py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100"
+            >
               <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-charcoal-400">
                 Quick Actions
               </div>
               <button
+                role="menuitem"
                 onClick={() => {
                   setIsActionsOpen(false);
                   setIsClientModalOpen(true);
@@ -173,6 +198,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
                 <span>New Client Profile</span>
               </button>
               <button
+                role="menuitem"
                 onClick={() => {
                   setIsActionsOpen(false);
                   setIsEventModalOpen(true);
@@ -185,6 +211,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
                 <span>Book Shoot / Event</span>
               </button>
               <button
+                role="menuitem"
                 onClick={() => {
                   setIsActionsOpen(false);
                   setIsTaskModalOpen(true);
@@ -197,6 +224,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
                 <span>Create Production Task</span>
               </button>
               <button
+                role="menuitem"
                 onClick={() => {
                   setIsActionsOpen(false);
                   navigate('/payments');
@@ -216,44 +244,68 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
         <div className="relative" ref={activityRef}>
           <button
             onClick={() => setIsActivityOpen(!isActivityOpen)}
-            className="p-2 rounded-xl text-charcoal-500 hover:text-charcoal hover:bg-ivory-200 transition-colors relative"
+            className="p-2 rounded-xl text-charcoal-500 hover:text-charcoal hover:bg-ivory-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30 transition-colors relative"
             title="Studio Activity Feed"
             aria-label="Studio Activity Feed"
+            aria-haspopup="dialog"
+            aria-expanded={isActivityOpen}
           >
             <Bell className="w-4 h-4" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-terracotta rounded-full ring-2 ring-surface" />
           </button>
 
           {isActivityOpen && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-surface rounded-2xl border border-border shadow-modal py-3 z-40 animate-in fade-in zoom-in-95 duration-100">
+            <div
+              role="dialog"
+              aria-label="Studio Activity Feed"
+              className="absolute right-0 mt-2 w-80 sm:w-96 bg-surface rounded-2xl border border-border shadow-modal py-3 z-40 animate-in fade-in zoom-in-95 duration-100"
+            >
               <div className="px-4 pb-2.5 border-b border-border flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-semibold text-charcoal">Studio Activity</h4>
                   <p className="text-[11px] text-charcoal-400">Recent actions in demo workspace</p>
                 </div>
-                <span className="text-[10px] bg-ivory-200 text-charcoal-600 px-2 py-0.5 rounded-pill font-medium">
-                  {activityLog.length} events
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] bg-ivory-200 text-charcoal-600 px-2 py-0.5 rounded-pill font-medium">
+                    {activityLog.length} events
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsClearActivityOpen(true)}
+                    disabled={activityLog.length === 0}
+                    className="text-[11px] text-rose hover:text-rose-dark disabled:opacity-40 disabled:hover:text-rose flex items-center gap-1 font-medium px-2 py-0.5 rounded hover:bg-rose-light/50 transition-colors"
+                    title="Delete all activity records"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Clear All</span>
+                  </button>
+                </div>
               </div>
 
               <div className="max-h-72 overflow-y-auto divide-y divide-border/60">
-                {activityLog.slice(0, 5).map((act) => (
-                  <div key={act.id} className="p-3 hover:bg-ivory-50 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-charcoal truncate">
-                        {act.action}
-                      </span>
-                      <span className="text-[10px] text-charcoal-400 flex items-center gap-1 flex-shrink-0">
-                        <Clock className="w-3 h-3" />
-                        {formatRelativeTime(act.timestamp)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-charcoal-600 mt-0.5 leading-snug">{act.details}</p>
-                    <div className="mt-1 text-[11px] text-terracotta font-medium">
-                      By {act.userName}
-                    </div>
+                {activityLog.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-charcoal-400">
+                    No recent activity recorded.
                   </div>
-                ))}
+                ) : (
+                  activityLog.slice(0, 10).map((act) => (
+                    <div key={act.id} className="p-3 hover:bg-ivory-50 transition-colors">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-charcoal truncate">
+                          {act.action}
+                        </span>
+                        <span className="text-[10px] text-charcoal-400 flex items-center gap-1 flex-shrink-0">
+                          <Clock className="w-3 h-3" />
+                          {formatRelativeTime(act.timestamp)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-charcoal-600 mt-0.5 leading-snug">{act.details}</p>
+                      <div className="mt-1 text-[11px] text-terracotta font-medium">
+                        By {act.userName}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -263,8 +315,10 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
         <div className="relative" ref={profileRef}>
           <button
             onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex items-center gap-2 p-1 pl-1.5 rounded-full hover:bg-ivory-200 border border-transparent hover:border-border transition-colors"
+            className="flex items-center gap-2 p-1 pl-1.5 rounded-full hover:bg-ivory-200 border border-transparent hover:border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30 transition-colors"
             aria-label="Demo Studio Profile"
+            aria-haspopup="menu"
+            aria-expanded={isProfileOpen}
           >
             <Avatar
               name="Arjun Mehta"
@@ -275,7 +329,11 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
           </button>
 
           {isProfileOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-surface rounded-2xl border border-border shadow-modal p-2 z-40 animate-in fade-in zoom-in-95 duration-100">
+            <div
+              role="menu"
+              aria-label="Studio Director Profile"
+              className="absolute right-0 mt-2 w-72 bg-surface rounded-2xl border border-border shadow-modal p-2 z-40 animate-in fade-in zoom-in-95 duration-100"
+            >
               <div className="p-3 border-b border-border/80">
                 <div className="flex items-center gap-3">
                   <Avatar
@@ -296,6 +354,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
 
               <div className="py-1">
                 <button
+                  role="menuitem"
                   onClick={() => {
                     setIsProfileOpen(false);
                     navigate('/settings');
@@ -308,6 +367,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
 
               <div className="pt-1 border-t border-border/80">
                 <button
+                  role="menuitem"
                   onClick={() => setIsResetConfirmOpen(true)}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-rose hover:bg-rose-light/50 rounded-lg transition-colors"
                 >
@@ -352,6 +412,21 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
       <TaskModal
         isOpen={isTaskModalOpen}
         onClose={() => setIsTaskModalOpen(false)}
+      />
+
+      {/* Clear Activity Log Dialog */}
+      <ConfirmDialog
+        isOpen={isClearActivityOpen}
+        onClose={() => setIsClearActivityOpen(false)}
+        onConfirm={() => {
+          clearActivityLog();
+          setIsClearActivityOpen(false);
+          toast.success('Activity Log Cleared', 'All activity entries have been deleted.');
+        }}
+        title="Delete All Activity History?"
+        message={`Are you sure you want to delete all ${activityLog.length} activity feed records? This action cannot be undone.`}
+        confirmLabel={`Clear All (${activityLog.length})`}
+        isDestructive={true}
       />
     </header>
   );

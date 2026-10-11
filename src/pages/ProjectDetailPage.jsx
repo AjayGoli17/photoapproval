@@ -29,6 +29,7 @@ import { Avatar } from '../components/common/Avatar';
 import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
 import { Modal } from '../components/common/Modal';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { TaskModal } from '../components/modals/TaskModal';
 import { ProjectModal } from '../components/modals/ProjectModal';
 import { ProjectNoteModal } from '../components/modals/ProjectNoteModal';
@@ -63,6 +64,9 @@ export function ProjectDetailPage() {
     toggleTaskComplete,
     deleteTask,
     deleteProjectNote,
+    deleteTasksForProject,
+    deleteNotesForProject,
+    deleteDeliverablesForProject,
     team,
     deliverables,
     payments,
@@ -76,14 +80,19 @@ export function ProjectDetailPage() {
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [isDeleteProjectTasksOpen, setIsDeleteProjectTasksOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
 
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
+  const [isDeleteProjectNotesOpen, setIsDeleteProjectNotesOpen] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState(null);
 
   // Deliverables & Payments modals
   const [activeProofingDeliv, setActiveProofingDeliv] = useState(null);
   const [isDeliverableModalOpen, setIsDeliverableModalOpen] = useState(false);
   const [editingDeliverable, setEditingDeliverable] = useState(null);
+  const [isDeleteProjectDeliverablesOpen, setIsDeleteProjectDeliverablesOpen] = useState(false);
   const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
 
   const project = getProject(id);
@@ -92,7 +101,11 @@ export function ProjectDetailPage() {
   const projectTasks = project ? getTasksByProject(project.id) : [];
   const projectNotes = project ? getNotesByProject(project.id) : [];
   const projectProgress = project ? getProjectProgress(project.id) : 0;
-  const projectDeliverable = project ? deliverables.find((d) => d.projectId === project.id) : null;
+  const projectDeliverables = useMemo(() => {
+    if (!project) return [];
+    return deliverables.filter((d) => d.projectId === project.id);
+  }, [deliverables, project?.id]);
+  const projectDeliverable = projectDeliverables[0] || null;
 
   // Event financial calculations
   const eventPayments = useMemo(() => {
@@ -170,17 +183,11 @@ export function ProjectDetailPage() {
   };
 
   const handleDeleteTask = (taskId, taskTitle) => {
-    if (window.confirm(`Are you sure you want to delete task "${taskTitle}"?`)) {
-      deleteTask(taskId);
-      toast.success('Task Deleted', `Removed task "${taskTitle}"`);
-    }
+    setTaskToDelete({ id: taskId, title: taskTitle });
   };
 
   const handleDeleteNote = (noteId, noteTitle) => {
-    if (window.confirm(`Are you sure you want to delete note "${noteTitle}"?`)) {
-      deleteProjectNote(noteId);
-      toast.success('Note Deleted', `Removed note "${noteTitle}"`);
-    }
+    setNoteToDelete({ id: noteId, title: noteTitle });
   };
 
   return (
@@ -545,16 +552,28 @@ export function ProjectDetailPage() {
               </div>
             </div>
 
-            <Button
-              size="sm"
-              leftIcon={<Plus className="w-4 h-4" />}
-              onClick={() => {
-                setEditingTask(null);
-                setIsTaskModalOpen(true);
-              }}
-            >
-              Add Task to Project
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Trash2 className="w-4 h-4 text-rose" />}
+                onClick={() => setIsDeleteProjectTasksOpen(true)}
+                disabled={projectTasks.length === 0}
+                className="text-rose hover:bg-rose-light hover:border-rose/30"
+              >
+                Delete All Tasks ({projectTasks.length})
+              </Button>
+              <Button
+                size="sm"
+                leftIcon={<Plus className="w-4 h-4" />}
+                onClick={() => {
+                  setEditingTask(null);
+                  setIsTaskModalOpen(true);
+                }}
+              >
+                Add Task to Project
+              </Button>
+            </div>
           </div>
 
           <Card className="divide-y divide-border/60">
@@ -766,16 +785,28 @@ export function ProjectDetailPage() {
                 Technical lighting notes, client style references, and color grading instructions.
               </p>
             </div>
-            <Button
-              size="sm"
-              leftIcon={<Plus className="w-4 h-4" />}
-              onClick={() => {
-                setEditingNote(null);
-                setIsNoteModalOpen(true);
-              }}
-            >
-              Add Note
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Trash2 className="w-4 h-4 text-rose" />}
+                onClick={() => setIsDeleteProjectNotesOpen(true)}
+                disabled={projectNotes.length === 0}
+                className="text-rose hover:bg-rose-light hover:border-rose/30"
+              >
+                Delete All Notes ({projectNotes.length})
+              </Button>
+              <Button
+                size="sm"
+                leftIcon={<Plus className="w-4 h-4" />}
+                onClick={() => {
+                  setEditingNote(null);
+                  setIsNoteModalOpen(true);
+                }}
+              >
+                Add Note
+              </Button>
+            </div>
           </div>
 
           {projectNotes.length === 0 ? (
@@ -905,6 +936,16 @@ export function ProjectDetailPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Trash2 className="w-4 h-4 text-rose" />}
+                onClick={() => setIsDeleteProjectDeliverablesOpen(true)}
+                disabled={projectDeliverables.length === 0}
+                className="text-rose hover:bg-rose-light hover:border-rose/30"
+              >
+                Delete All Deliverables ({projectDeliverables.length})
+              </Button>
               <Button
                 size="sm"
                 variant="primary"
@@ -1137,31 +1178,17 @@ export function ProjectDetailPage() {
         project={project}
       />
 
-      {/* Delete Project Confirmation Modal */}
-      <Modal
+      {/* Delete Project Confirmation Dialog */}
+      <ConfirmDialog
         isOpen={isDeleteProjectOpen}
         onClose={() => setIsDeleteProjectOpen(false)}
-        title="Confirm Project Workspace Deletion"
-        subtitle="This action safely cleans up linked tasks and production notes."
-        maxWidth="max-w-md"
-      >
-        <div className="space-y-4">
-          <div className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-700 flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-            <div>
-              Are you sure you want to delete <strong>{project.title}</strong>? All {projectTasks.length} associated task(s) and {projectNotes.length} note(s) will be removed. The original scheduled shoot record will remain untouched.
-            </div>
-          </div>
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={() => setIsDeleteProjectOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteProject}>
-              Confirm Delete
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        onConfirm={handleDeleteProject}
+        title="Delete Project Workspace?"
+        message={`Are you sure you want to delete "${project.title}"? All ${projectTasks.length} associated task(s) and ${projectNotes.length} note(s) will be removed. The original scheduled shoot record will remain untouched.`}
+        confirmLabel="Delete Project"
+        cancelLabel="Cancel"
+        isDestructive={true}
+      />
 
       {/* Task Modal */}
       <TaskModal
@@ -1213,6 +1240,99 @@ export function ProjectDetailPage() {
           eventId={event.id}
         />
       )}
+
+      {/* Delete All Project Tasks Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteProjectTasksOpen}
+        onClose={() => setIsDeleteProjectTasksOpen(false)}
+        onConfirm={() => {
+          const count = projectTasks.length;
+          deleteTasksForProject(project.id);
+          setIsDeleteProjectTasksOpen(false);
+          toast.success('Tasks Cleared', `Successfully deleted all ${count} tasks for this workspace.`);
+        }}
+        title={`Delete All Tasks for "${project?.title || 'Project'}"?`}
+        message={`Are you sure you want to delete all ${projectTasks.length} tasks associated with this project workspace? This action cannot be undone.`}
+        confirmLabel={`Delete All (${projectTasks.length})`}
+        isDestructive={true}
+      />
+
+      {/* Delete All Project Notes Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteProjectNotesOpen}
+        onClose={() => setIsDeleteProjectNotesOpen(false)}
+        onConfirm={() => {
+          const count = projectNotes.length;
+          deleteNotesForProject(project.id);
+          setIsDeleteProjectNotesOpen(false);
+          toast.success('Notes Cleared', `Successfully deleted all ${count} notes for this workspace.`);
+        }}
+        title={`Delete All Notes for "${project?.title || 'Project'}"?`}
+        message={`Are you sure you want to delete all ${projectNotes.length} production notes from this workspace? This action cannot be undone.`}
+        confirmLabel={`Delete All (${projectNotes.length})`}
+        isDestructive={true}
+      />
+
+      {/* Delete All Project Deliverables Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteProjectDeliverablesOpen}
+        onClose={() => setIsDeleteProjectDeliverablesOpen(false)}
+        onConfirm={() => {
+          const count = projectDeliverables.length;
+          deleteDeliverablesForProject(project.id);
+          setIsDeleteProjectDeliverablesOpen(false);
+          setActiveProofingDeliv(null);
+          toast.success('Deliverables Cleared', `Successfully deleted all ${count} deliverables for this workspace.`);
+        }}
+        title={`Delete All Deliverables for "${project?.title || 'Project'}"?`}
+        message={`Are you sure you want to delete all ${projectDeliverables.length} client deliverables and proofs for this workspace? This action cannot be undone.`}
+        confirmLabel={`Delete All (${projectDeliverables.length})`}
+        isDestructive={true}
+      />
+
+      {/* Delete Single Task Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(taskToDelete)}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={() => {
+          if (!taskToDelete) return;
+          try {
+            deleteTask(taskToDelete.id);
+            toast.success('Task Deleted', `Removed task "${taskToDelete.title}"`);
+          } catch (err) {
+            toast.error('Deletion Failed', err.message);
+          } finally {
+            setTaskToDelete(null);
+          }
+        }}
+        title="Delete Task?"
+        message={`Are you sure you want to delete task "${taskToDelete?.title || ''}"? This action cannot be undone.`}
+        confirmLabel="Delete Task"
+        cancelLabel="Cancel"
+        isDestructive={true}
+      />
+
+      {/* Delete Single Note Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(noteToDelete)}
+        onClose={() => setNoteToDelete(null)}
+        onConfirm={() => {
+          if (!noteToDelete) return;
+          try {
+            deleteProjectNote(noteToDelete.id);
+            toast.success('Note Deleted', `Removed note "${noteToDelete.title}"`);
+          } catch (err) {
+            toast.error('Deletion Failed', err.message);
+          } finally {
+            setNoteToDelete(null);
+          }
+        }}
+        title="Delete Note?"
+        message={`Are you sure you want to delete note "${noteToDelete?.title || ''}"? This action cannot be undone.`}
+        confirmLabel="Delete Note"
+        cancelLabel="Cancel"
+        isDestructive={true}
+      />
     </div>
   );
 }

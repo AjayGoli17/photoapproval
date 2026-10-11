@@ -2,7 +2,7 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '../../utils/formatters';
 
-export function Button({
+export const Button = React.forwardRef(function Button({
   children,
   variant = 'primary',
   size = 'md',
@@ -14,7 +14,7 @@ export function Button({
   type = 'button',
   onClick,
   ...props
-}) {
+}, ref) {
   const baseStyles = 'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:ring-offset-1 select-none disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variants = {
@@ -37,6 +37,7 @@ export function Button({
 
   return (
     <button
+      ref={ref}
       type={type}
       disabled={disabled || isLoading}
       onClick={onClick}
@@ -52,19 +53,20 @@ export function Button({
       {!isLoading && rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
     </button>
   );
-}
+});
 
-export function IconButton({
+export const IconButton = React.forwardRef(function IconButton({
   icon,
   label,
   variant = 'ghost',
   size = 'md',
   className,
   ...props
-}) {
+}, ref) {
   const iconSizes = size === 'sm' ? 'iconSm' : 'icon';
   return (
     <Button
+      ref={ref}
       variant={variant}
       size={iconSizes}
       aria-label={label}
@@ -75,4 +77,5 @@ export function IconButton({
       {icon}
     </Button>
   );
-}
+});
+

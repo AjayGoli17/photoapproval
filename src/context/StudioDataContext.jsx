@@ -45,6 +45,15 @@ export function StudioDataProvider({ children }) {
     }));
   }, [persistChanges]);
 
+  const clearActivityLog = useCallback(() => {
+    const count = data.activityLog.length;
+    persistChanges((prev) => ({
+      ...prev,
+      activityLog: [],
+    }));
+    return count;
+  }, [data.activityLog.length, persistChanges]);
+
   // ==========================================
   // CLIENT MUTATIONS
   // ==========================================
@@ -115,6 +124,20 @@ export function StudioDataProvider({ children }) {
       logActivity('Studio Director', 'Client Deleted', 'Client', client.name, `Removed client record for ${client.name}`, id);
     }
   }, [data.clients, data.events, persistChanges, logActivity]);
+
+  const deleteAllClients = useCallback(() => {
+    const count = data.clients.length;
+    persistChanges((prev) => ({
+      ...prev,
+      clients: [],
+      // Safely unlink client references in events, projects, and payments
+      events: prev.events.map((e) => ({ ...e, clientId: null })),
+      projects: prev.projects.map((p) => ({ ...p, clientId: null })),
+      payments: prev.payments.map((pay) => ({ ...pay, clientId: null })),
+    }));
+    logActivity('Studio Director', 'All Clients Deleted', 'Client Directory', 'All Clients', `Deleted all ${count} client records and safely unlinked related bookings`);
+    return count;
+  }, [data.clients.length, persistChanges, logActivity]);
 
   // ==========================================
   // EVENT MUTATIONS
@@ -228,6 +251,20 @@ export function StudioDataProvider({ children }) {
     }
   }, [data.events, persistChanges, logActivity]);
 
+  const deleteAllEvents = useCallback(() => {
+    const count = data.events.length;
+    persistChanges((prev) => ({
+      ...prev,
+      events: [],
+      // Safely unlink event references in projects, payments, and deliverables
+      projects: prev.projects.map((p) => ({ ...p, eventId: null })),
+      payments: prev.payments.map((pay) => ({ ...pay, eventId: null })),
+      deliverables: prev.deliverables.map((d) => ({ ...d, eventId: null })),
+    }));
+    logActivity('Studio Director', 'All Events Deleted', 'Events', 'All Bookings', `Deleted all ${count} event bookings and safely unlinked related workspaces`);
+    return count;
+  }, [data.events.length, persistChanges, logActivity]);
+
   // ==========================================
   // PROJECT MUTATIONS
   // ==========================================
@@ -300,6 +337,21 @@ export function StudioDataProvider({ children }) {
       logActivity('Studio Director', 'Project Deleted', 'Project', project.title, `Removed project workspace and archived associated tasks`, id);
     }
   }, [data.projects, persistChanges, logActivity]);
+
+  const deleteAllProjects = useCallback(() => {
+    const count = data.projects.length;
+    persistChanges((prev) => ({
+      ...prev,
+      projects: [],
+      // Clean up linked tasks, notes, and unlink deliverables & payments
+      tasks: prev.tasks.map((t) => ({ ...t, projectId: null })),
+      projectNotes: [],
+      deliverables: prev.deliverables.map((d) => ({ ...d, projectId: null })),
+      payments: prev.payments.map((pay) => ({ ...pay, projectId: null })),
+    }));
+    logActivity('Studio Director', 'All Projects Deleted', 'Projects', 'All Workspaces', `Deleted all ${count} project workspaces and cleaned up associated production notes`);
+    return count;
+  }, [data.projects.length, persistChanges, logActivity]);
 
   const createProjectForEvent = useCallback((eventId) => {
     const event = data.events.find((e) => e.id === eventId);
@@ -423,6 +475,31 @@ export function StudioDataProvider({ children }) {
     }
   }, [data.tasks, persistChanges, logActivity]);
 
+  const deleteAllTasks = useCallback(() => {
+    const count = data.tasks.length;
+    persistChanges((prev) => ({
+      ...prev,
+      tasks: [],
+    }));
+    logActivity('Studio Director', 'All Tasks Deleted', 'Tasks', 'All Tasks', `Deleted all ${count} studio tasks`);
+    return count;
+  }, [data.tasks.length, persistChanges, logActivity]);
+
+  const deleteTasksForProject = useCallback((projectId) => {
+    let deletedCount = 0;
+    persistChanges((prev) => {
+      const remaining = prev.tasks.filter((t) => t.projectId !== projectId);
+      deletedCount = prev.tasks.length - remaining.length;
+      return {
+        ...prev,
+        tasks: remaining,
+      };
+    });
+    const proj = data.projects.find((p) => p.id === projectId);
+    logActivity('Studio Director', 'Project Tasks Deleted', 'Tasks', proj?.title || 'Project Workspace', `Deleted all ${deletedCount} tasks for ${proj?.title || 'workspace'}`);
+    return deletedCount;
+  }, [data.projects, persistChanges, logActivity]);
+
   const toggleTaskComplete = useCallback((id) => {
     const task = data.tasks.find((t) => t.id === id);
     if (!task) return;
@@ -484,6 +561,31 @@ export function StudioDataProvider({ children }) {
       projectNotes: (prev.projectNotes || []).filter((n) => n.id !== id),
     }));
   }, [persistChanges]);
+
+  const deleteAllProjectNotes = useCallback(() => {
+    const count = (data.projectNotes || []).length;
+    persistChanges((prev) => ({
+      ...prev,
+      projectNotes: [],
+    }));
+    logActivity('Studio Director', 'All Notes Deleted', 'Project Notes', 'All Notes', `Deleted all ${count} production notes across all projects`);
+    return count;
+  }, [data.projectNotes, persistChanges, logActivity]);
+
+  const deleteNotesForProject = useCallback((projectId) => {
+    let deletedCount = 0;
+    persistChanges((prev) => {
+      const remaining = (prev.projectNotes || []).filter((n) => n.projectId !== projectId);
+      deletedCount = (prev.projectNotes || []).length - remaining.length;
+      return {
+        ...prev,
+        projectNotes: remaining,
+      };
+    });
+    const proj = data.projects.find((p) => p.id === projectId);
+    logActivity('Studio Director', 'Project Notes Deleted', 'Project Notes', proj?.title || 'Project Workspace', `Deleted all ${deletedCount} notes for ${proj?.title || 'workspace'}`);
+    return deletedCount;
+  }, [data.projects, data.projectNotes, persistChanges, logActivity]);
 
   const getNotesByProject = useCallback((projectId) => {
     return (data.projectNotes || []).filter((n) => n.projectId === projectId);
@@ -547,6 +649,19 @@ export function StudioDataProvider({ children }) {
       logActivity('Studio Director', 'Team Member Removed', 'Team', member.name, `Removed team member profile for ${member.name}`, id);
     }
   }, [data.team, data.tasks, persistChanges, logActivity]);
+
+  const deleteAllTeamMembers = useCallback(() => {
+    const count = data.team.length;
+    persistChanges((prev) => ({
+      ...prev,
+      team: [],
+      // Safely unlink team member assignments in tasks and events
+      tasks: prev.tasks.map((t) => ({ ...t, assignedTo: null })),
+      events: prev.events.map((e) => ({ ...e, leadPhotographerId: null, teamAssigned: [] })),
+    }));
+    logActivity('Studio Director', 'All Team Members Removed', 'Team', 'All Team Members', `Removed all ${count} team members and safely cleared task assignments`);
+    return count;
+  }, [data.team.length, persistChanges, logActivity]);
 
   const getTeamMemberWorkload = useCallback((memberId) => {
     const memberTasks = data.tasks.filter((t) => t.assignedTo === memberId);
@@ -660,6 +775,31 @@ export function StudioDataProvider({ children }) {
       logActivity('Studio Director', 'Deliverable Deleted', 'Deliverable', deliv.title, `Removed deliverable collection: ${deliv.title}`, id);
     }
   }, [data.deliverables, persistChanges, logActivity]);
+
+  const deleteAllDeliverables = useCallback(() => {
+    const count = data.deliverables.length;
+    persistChanges((prev) => ({
+      ...prev,
+      deliverables: [],
+    }));
+    logActivity('Studio Director', 'All Deliverables Deleted', 'Deliverables', 'All Collections', `Deleted all ${count} client deliverable collections`);
+    return count;
+  }, [data.deliverables.length, persistChanges, logActivity]);
+
+  const deleteDeliverablesForProject = useCallback((projectId) => {
+    let deletedCount = 0;
+    persistChanges((prev) => {
+      const remaining = prev.deliverables.filter((d) => d.projectId !== projectId);
+      deletedCount = prev.deliverables.length - remaining.length;
+      return {
+        ...prev,
+        deliverables: remaining,
+      };
+    });
+    const proj = data.projects.find((p) => p.id === projectId);
+    logActivity('Studio Director', 'Project Deliverables Deleted', 'Deliverables', proj?.title || 'Project Workspace', `Deleted all ${deletedCount} deliverables for ${proj?.title || 'workspace'}`);
+    return deletedCount;
+  }, [data.projects, data.deliverables, persistChanges, logActivity]);
 
   const updateDeliverableItemStatus = useCallback((deliverableId, photoIds, status, feedbackNote = '') => {
     const ids = Array.isArray(photoIds) ? photoIds : [photoIds];
@@ -797,6 +937,16 @@ export function StudioDataProvider({ children }) {
       logActivity('Studio Director', 'Invoice Removed', 'Payment', p.invoiceNumber, `Cancelled invoice ${p.invoiceNumber}`, id);
     }
   }, [data.payments, persistChanges, logActivity]);
+
+  const deleteAllPayments = useCallback(() => {
+    const count = data.payments.length;
+    persistChanges((prev) => ({
+      ...prev,
+      payments: [],
+    }));
+    logActivity('Studio Director', 'All Payments Deleted', 'Payments', 'All Invoices & Payments', `Deleted all ${count} payment records and tax invoices`);
+    return count;
+  }, [data.payments.length, persistChanges, logActivity]);
 
   const recordEventPayment = useCallback((eventId, paymentData) => {
     const event = data.events.find((e) => e.id === eventId);
@@ -1209,36 +1359,46 @@ export function StudioDataProvider({ children }) {
     addClient,
     updateClient,
     deleteClient,
+    deleteAllClients,
     // event mutations
     addEvent,
     updateEvent,
     deleteEvent,
+    deleteAllEvents,
     // project mutations
     addProject,
     updateProject,
     deleteProject,
+    deleteAllProjects,
     createProjectForEvent,
     getProjectProgress,
     // task mutations
     addTask,
     updateTask,
     deleteTask,
+    deleteAllTasks,
+    deleteTasksForProject,
     toggleTaskComplete,
     reassignTask,
     // project notes mutations
     addProjectNote,
     updateProjectNote,
     deleteProjectNote,
+    deleteAllProjectNotes,
+    deleteNotesForProject,
     getNotesByProject,
     // team mutations & workload
     addTeamMember,
     updateTeamMember,
     deleteTeamMember,
+    deleteAllTeamMembers,
     getTeamMemberWorkload,
     // deliverables mutations
     addDeliverable,
     updateDeliverable,
     deleteDeliverable,
+    deleteAllDeliverables,
+    deleteDeliverablesForProject,
     updateDeliverableItemStatus,
     getDeliverablesByProject,
     // payment & invoice mutations
@@ -1246,11 +1406,13 @@ export function StudioDataProvider({ children }) {
     recordEventPayment,
     updatePayment,
     deletePayment,
+    deleteAllPayments,
     // settings
     updateSettings,
     // reset & activity
     resetDemoData,
     logActivity,
+    clearActivityLog,
     // queries & financial calculations
     getClient,
     getEvent,
@@ -1275,39 +1437,51 @@ export function StudioDataProvider({ children }) {
     addClient,
     updateClient,
     deleteClient,
+    deleteAllClients,
     addEvent,
     updateEvent,
     deleteEvent,
+    deleteAllEvents,
     addProject,
     updateProject,
     deleteProject,
+    deleteAllProjects,
     createProjectForEvent,
     getProjectProgress,
     addTask,
     updateTask,
     deleteTask,
+    deleteAllTasks,
+    deleteTasksForProject,
     toggleTaskComplete,
     reassignTask,
     addProjectNote,
     updateProjectNote,
     deleteProjectNote,
+    deleteAllProjectNotes,
+    deleteNotesForProject,
     getNotesByProject,
     addTeamMember,
     updateTeamMember,
     deleteTeamMember,
+    deleteAllTeamMembers,
     getTeamMemberWorkload,
     addDeliverable,
     updateDeliverable,
     deleteDeliverable,
+    deleteAllDeliverables,
+    deleteDeliverablesForProject,
     updateDeliverableItemStatus,
     getDeliverablesByProject,
     addPayment,
     recordEventPayment,
     updatePayment,
     deletePayment,
+    deleteAllPayments,
     updateSettings,
     resetDemoData,
     logActivity,
+    clearActivityLog,
     getClient,
     getEvent,
     getProject,

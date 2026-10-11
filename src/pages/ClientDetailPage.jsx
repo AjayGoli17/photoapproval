@@ -161,7 +161,7 @@ export function ClientDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border">
+      <div className="flex items-center gap-2 border-b border-border overflow-x-auto whitespace-nowrap">
         {[
           { key: 'overview', label: 'Overview' },
           { key: 'events', label: `Booked Events (${clientEvents.length})` },
@@ -373,7 +373,7 @@ export function ClientDetailPage() {
             subtitle={`All invoices and deposit records for ${client.name}`}
           />
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm min-w-[600px]">
               <thead className="bg-ivory-50 border-b border-border text-xs uppercase tracking-wider text-charcoal-500 font-semibold">
                 <tr>
                   <th className="p-4">Invoice #</th>

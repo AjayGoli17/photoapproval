@@ -27,6 +27,7 @@ import { Badge, PriorityBadge } from '../components/common/Badge';
 import { Avatar } from '../components/common/Avatar';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { TeamMemberModal } from '../components/modals/TeamMemberModal';
 import { formatDate } from '../utils/formatters';
 
@@ -37,12 +38,14 @@ export function TeamPage() {
     projects,
     getTeamMemberWorkload,
     deleteTeamMember,
+    deleteAllTeamMembers,
     updateTask,
   } = useStudioData();
   const toast = useToast();
 
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
 
   // Drawer / slide-over state
   const [selectedMember, setSelectedMember] = useState(null);
@@ -50,6 +53,7 @@ export function TeamPage() {
   // Delete blocker modal state
   const [deletingMember, setDeletingMember] = useState(null);
   const [deleteError, setDeleteError] = useState('');
+  const [memberToDelete, setMemberToDelete] = useState(null);
 
   // Reassign modal state
   const [reassigningTask, setReassigningTask] = useState(null);
@@ -75,15 +79,7 @@ export function TeamPage() {
       return;
     }
 
-    if (window.confirm(`Are you sure you want to remove ${member.name} from the studio roster?`)) {
-      try {
-        deleteTeamMember(member.id);
-        toast.success('Team Member Removed', `Removed ${member.name}`);
-        if (selectedMember?.id === member.id) setSelectedMember(null);
-      } catch (err) {
-        toast.error('Deletion Failed', err.message);
-      }
-    }
+    setMemberToDelete(member);
   };
 
   const handleExecuteReassignment = () => {
@@ -115,15 +111,27 @@ export function TeamPage() {
         subtitle="Manage lead photographers, retouchers, colorists, workload distribution, and task assignments."
         badge={<Badge variant="sage">{team.length} Active Artists</Badge>}
         actions={
-          <Button
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={() => {
-              setEditingMember(null);
-              setIsAddEditModalOpen(true);
-            }}
-          >
-            Add Team Member
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Trash2 className="w-4 h-4 text-rose" />}
+              onClick={() => setIsDeleteAllOpen(true)}
+              disabled={team.length === 0}
+              className="text-rose hover:bg-rose-light hover:border-rose/30"
+            >
+              Delete All ({team.length})
+            </Button>
+            <Button
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={() => {
+                setEditingMember(null);
+                setIsAddEditModalOpen(true);
+              }}
+            >
+              Add Team Member
+            </Button>
+          </div>
         }
       />
 
@@ -408,6 +416,46 @@ export function TeamPage() {
           setEditingMember(null);
         }}
         member={editingMember}
+      />
+
+      {/* Delete All Team Members Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteAllOpen}
+        onClose={() => setIsDeleteAllOpen(false)}
+        onConfirm={() => {
+          const count = team.length;
+          deleteAllTeamMembers();
+          setIsDeleteAllOpen(false);
+          setSelectedMember(null);
+          toast.success('Team Cleared', `Successfully deleted all ${count} team members.`);
+        }}
+        title="Delete All Team Members?"
+        message={`Are you sure you want to delete all ${team.length} team members? This will remove all artist profiles and safely unassign their linked tasks and events. This action cannot be undone.`}
+        confirmLabel={`Delete All (${team.length})`}
+        isDestructive={true}
+      />
+
+      {/* Delete Single Team Member Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(memberToDelete)}
+        onClose={() => setMemberToDelete(null)}
+        onConfirm={() => {
+          if (!memberToDelete) return;
+          try {
+            deleteTeamMember(memberToDelete.id);
+            toast.success('Team Member Removed', `Removed ${memberToDelete.name}`);
+            if (selectedMember?.id === memberToDelete.id) setSelectedMember(null);
+          } catch (err) {
+            toast.error('Deletion Failed', err.message);
+          } finally {
+            setMemberToDelete(null);
+          }
+        }}
+        title="Remove Team Member?"
+        message={`Are you sure you want to remove ${memberToDelete?.name || ''} from the studio roster? This action cannot be undone.`}
+        confirmLabel="Remove Member"
+        cancelLabel="Cancel"
+        isDestructive={true}
       />
     </div>
   );

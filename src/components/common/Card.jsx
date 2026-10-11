@@ -31,7 +31,7 @@ export function CardHeader({
   children,
 }) {
   return (
-    <div className={cn('p-5 border-b border-border/80 flex items-center justify-between gap-4', className)}>
+    <div className={cn('p-4 sm:p-5 border-b border-border/80 flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap', className)}>
       {children || (
         <>
           <div>

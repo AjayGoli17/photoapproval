@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   FolderKanban,
   Plus,
+  Trash2,
   Calendar,
   Clock,
   ChevronRight,
@@ -15,16 +16,19 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useStudioData } from '../context/StudioDataContext';
+import { useToast } from '../context/ToastContext';
 import { PageHeader } from '../components/layout/PageHeader';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { SearchInput } from '../components/common/SearchInput';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { ProjectModal } from '../components/modals/ProjectModal';
 import { formatDate } from '../utils/formatters';
 
 export function ProjectsPage() {
-  const { projects, clients, events, tasks, team, getProjectProgress } = useStudioData();
+  const { projects, clients, events, tasks, team, getProjectProgress, deleteAllProjects } = useStudioData();
+  const toast = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -32,6 +36,7 @@ export function ProjectsPage() {
   const [sortBy, setSortBy] = useState('deadline'); // 'deadline' | 'progress' | 'shoot' | 'title'
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
 
   // Compute enriched project list
   const enrichedProjects = useMemo(() => {
@@ -108,12 +113,24 @@ export function ProjectsPage() {
         subtitle="Manage end-to-end post-production pipelines, culling workflows, editing progress, and team deliverables."
         badge={<Badge variant="terracotta">{projects.length} Active Workspaces</Badge>}
         actions={
-          <Button
-            leftIcon={<Plus className="w-4 h-4" />}
-            onClick={() => setIsModalOpen(true)}
-          >
-            New Project
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Trash2 className="w-4 h-4 text-rose" />}
+              onClick={() => setIsDeleteAllOpen(true)}
+              disabled={projects.length === 0}
+              className="text-rose hover:bg-rose-light hover:border-rose/30"
+            >
+              Delete All ({projects.length})
+            </Button>
+            <Button
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={() => setIsModalOpen(true)}
+            >
+              New Project
+            </Button>
+          </div>
         }
       />
 
@@ -332,7 +349,7 @@ export function ProjectsPage() {
         /* Compact Table List View */
         <Card className="overflow-hidden border border-border">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-border bg-ivory-50 text-[11px] font-semibold text-charcoal-500 uppercase tracking-wider">
                   <th className="py-3 px-4">Project Workspace</th>
@@ -456,6 +473,22 @@ export function ProjectsPage() {
       <ProjectModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+      />
+
+      {/* Delete All Projects Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteAllOpen}
+        onClose={() => setIsDeleteAllOpen(false)}
+        onConfirm={() => {
+          const count = deleteAllProjects();
+          setIsDeleteAllOpen(false);
+          toast.success('Projects Deleted', `Successfully deleted all ${count} project workspaces.`);
+        }}
+        title="Delete All Projects?"
+        message={`Are you sure you want to delete all ${projects.length} project workspaces? Associated tasks, production notes, and deliverable links will be cleanly removed or unlinked. This action cannot be undone.`}
+        confirmLabel={`Delete All (${projects.length})`}
+        cancelLabel="Cancel"
+        isDestructive={true}
       />
     </div>
   );

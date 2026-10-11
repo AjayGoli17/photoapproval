@@ -39,7 +39,7 @@ export function AppLayout() {
           onOpenSearch={() => setIsSearchOpen(true)}
         />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full max-w-[1600px]">
+        <main className="flex-1 min-w-0 p-3 sm:p-6 lg:p-8 w-full max-w-[1600px]">
           <Outlet />
         </main>
       </div>

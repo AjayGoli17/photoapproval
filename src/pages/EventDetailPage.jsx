@@ -132,9 +132,9 @@ export function EventDetailPage() {
       </div>
 
       {/* Hero Header Card */}
-      <div className="bg-surface border border-border rounded-card p-6 shadow-subtle flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2.5">
+      <div className="bg-surface border border-border rounded-card p-4 sm:p-6 shadow-subtle flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
+        <div className="space-y-2 min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="terracotta">{event.eventType}</Badge>
             <Badge size="md">{event.status}</Badge>
             <Badge
@@ -150,29 +150,29 @@ export function EventDetailPage() {
               {financials?.paymentStatus}
             </Badge>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-charcoal">{event.title}</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-charcoal break-words">{event.title}</h1>
           <p className="text-sm text-charcoal-500 max-w-2xl leading-relaxed">
             {event.description || 'Custom photography studio booking coverage.'}
           </p>
         </div>
 
         {/* Pricing Card in Header */}
-        <div className="grid grid-cols-3 gap-3 p-4 bg-ivory-100 rounded-xl border border-border/80 text-center self-stretch md:self-auto min-w-[280px]">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 p-3 sm:p-4 bg-ivory-100 rounded-xl border border-border/80 text-center w-full md:w-auto min-w-0 sm:min-w-[280px] shrink-0">
           <div>
             <span className="text-[10px] uppercase font-bold text-charcoal-400 block">Agreed Price</span>
-            <span className="text-sm font-bold text-charcoal mt-0.5 block">
+            <span className="text-xs sm:text-sm font-bold text-charcoal mt-0.5 block truncate">
               {formatCurrency(financials?.agreedPrice)}
             </span>
           </div>
           <div>
             <span className="text-[10px] uppercase font-bold text-sage block">Received</span>
-            <span className="text-sm font-bold text-sage mt-0.5 block">
+            <span className="text-xs sm:text-sm font-bold text-sage mt-0.5 block truncate">
               {formatCurrency(financials?.amountReceived)}
             </span>
           </div>
           <div>
             <span className="text-[10px] uppercase font-bold text-rose block">Balance</span>
-            <span className="text-sm font-bold text-rose mt-0.5 block">
+            <span className="text-xs sm:text-sm font-bold text-rose mt-0.5 block truncate">
               {formatCurrency(financials?.outstandingBalance)}
             </span>
           </div>

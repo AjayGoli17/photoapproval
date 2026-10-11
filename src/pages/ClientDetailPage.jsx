@@ -81,7 +81,7 @@ export function ClientDetailPage() {
     <div className="space-y-6 animate-in fade-in duration-150">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <Breadcrumbs items={[{ label: 'Clients', to: '/clients' }, { label: client.name }]} />
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             size="sm"
             variant="outline"
@@ -102,12 +102,12 @@ export function ClientDetailPage() {
       </div>
 
       {/* Profile Header */}
-      <div className="bg-surface border border-border rounded-card p-6 shadow-subtle flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <Avatar src={client.avatar} name={client.name} size="xl" status={client.status} />
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-charcoal">{client.name}</h1>
+      <div className="bg-surface border border-border rounded-card p-4 sm:p-6 shadow-subtle flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
+        <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 flex-1">
+          <Avatar src={client.avatar} name={client.name} size="xl" status={client.status} className="shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold text-charcoal break-words">{client.name}</h1>
               <Badge size="md">{client.status}</Badge>
             </div>
             <p className="text-sm text-charcoal-500 mt-1">
@@ -116,44 +116,44 @@ export function ClientDetailPage() {
                 <> • Contact Person: <span className="text-charcoal font-medium">{client.contactPerson}</span></>
               )}
             </p>
-            <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-charcoal-600">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-xs text-charcoal-600">
               {client.location && (
                 <span className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-charcoal-400" />
-                  {client.location}
+                  <MapPin className="w-3.5 h-3.5 text-charcoal-400 shrink-0" />
+                  <span>{client.location}</span>
                 </span>
               )}
               {client.email && (
                 <span className="flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-charcoal-400" />
-                  {client.email}
+                  <Mail className="w-3.5 h-3.5 text-charcoal-400 shrink-0" />
+                  <span className="truncate">{client.email}</span>
                 </span>
               )}
               <span className="flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-charcoal-400" />
-                {client.phone}
+                <Phone className="w-3.5 h-3.5 text-charcoal-400 shrink-0" />
+                <span>{client.phone}</span>
               </span>
             </div>
           </div>
         </div>
 
         {/* Financial Summary Card */}
-        <div className="grid grid-cols-3 gap-3 p-3.5 bg-ivory-100 rounded-xl border border-border/80 self-stretch md:self-auto text-center">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 p-3 sm:p-3.5 bg-ivory-100 rounded-xl border border-border/80 w-full md:w-auto text-center shrink-0">
           <div>
             <span className="text-[10px] uppercase font-bold text-charcoal-400 block">Agreed Value</span>
-            <span className="text-sm font-bold text-charcoal mt-0.5 block">
+            <span className="text-xs sm:text-sm font-bold text-charcoal mt-0.5 block truncate">
               {formatCurrency(financials.totalAgreed)}
             </span>
           </div>
           <div>
             <span className="text-[10px] uppercase font-bold text-sage block">Received</span>
-            <span className="text-sm font-bold text-sage mt-0.5 block">
+            <span className="text-xs sm:text-sm font-bold text-sage mt-0.5 block truncate">
               {formatCurrency(financials.totalReceived)}
             </span>
           </div>
           <div>
             <span className="text-[10px] uppercase font-bold text-rose block">Balance</span>
-            <span className="text-sm font-bold text-rose mt-0.5 block">
+            <span className="text-xs sm:text-sm font-bold text-rose mt-0.5 block truncate">
               {formatCurrency(financials.outstandingBalance)}
             </span>
           </div>

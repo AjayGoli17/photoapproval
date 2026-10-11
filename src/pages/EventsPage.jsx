@@ -121,7 +121,7 @@ export function EventsPage() {
         subtitle="Manage royal weddings, destination ceremonies, fashion editorial days, and commercial campaigns."
         badge={<Badge variant="sage">{events.length} Total Bookings</Badge>}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -174,7 +174,7 @@ export function EventsPage() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs font-medium bg-surface border border-border rounded-xl text-charcoal focus:outline-none focus:ring-2 focus:ring-terracotta/25"
+            className="px-3 py-1.5 text-xs font-medium bg-surface border border-border rounded-xl text-charcoal focus:outline-none focus:ring-2 focus:ring-terracotta/25 w-full sm:w-auto"
           >
             {eventTypes.map((t) => (
               <option key={t} value={t}>

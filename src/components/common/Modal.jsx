@@ -161,7 +161,7 @@ export function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-charcoal-900/40 backdrop-blur-sm transition-opacity"
@@ -179,14 +179,14 @@ export function Modal({
         aria-label={!title && ariaLabel ? ariaLabel : undefined}
         tabIndex={-1}
         className={cn(
-          'relative w-full bg-surface rounded-card border border-border shadow-modal z-10 overflow-hidden transform transition-all my-4 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] flex flex-col animate-in fade-in zoom-in-95 duration-150 outline-none',
+          'relative w-full bg-surface rounded-card border border-border shadow-modal z-10 overflow-hidden transform transition-all my-2 sm:my-8 max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] flex flex-col animate-in fade-in zoom-in-95 duration-150 outline-none',
           maxWidth,
           className
         )}
       >
         {/* Header */}
         {(title || subtitle) && (
-          <div className="px-4 py-4 sm:px-6 sm:py-5 border-b border-border/80 flex items-start justify-between gap-4 shrink-0">
+          <div className="px-3.5 py-3 sm:px-6 sm:py-5 border-b border-border/80 flex items-start justify-between gap-3 shrink-0">
             <div>
               {title && (
                 <h3 id={titleId} className="text-base sm:text-lg font-semibold text-charcoal">
@@ -211,7 +211,7 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1">{children}</div>
+        <div className="p-3.5 sm:p-6 overflow-y-auto flex-1 min-h-0">{children}</div>
       </div>
     </div>
   );

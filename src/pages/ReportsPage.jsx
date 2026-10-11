@@ -63,7 +63,7 @@ export function ReportsPage() {
         subtitle="Real-time financial revenues, shoot conversions, deliverable proof signoffs, and darkroom task velocities."
         badge={<Badge variant="terracotta">{dateRangeLabel}</Badge>}
         actions={
-          <div className="flex items-center gap-1.5 bg-surface p-1 rounded-xl border border-border">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 bg-surface p-1 rounded-xl border border-border">
             {[
               { id: '30days', label: '30 Days' },
               { id: '90days', label: '90 Days' },
@@ -88,7 +88,7 @@ export function ReportsPage() {
       />
 
       {/* 8 Meaningful Business Summary KPI Cards (Req 6A) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card className="p-4 bg-surface">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-charcoal-400 block">
             Contracted Bookings
@@ -191,7 +191,7 @@ export function ReportsPage() {
             </div>
             <Badge variant="sage" size="xs">Cleared Cash</Badge>
           </div>
-          <div className="h-64 w-full pt-2">
+          <div className="h-64 w-full pt-2 min-w-0 overflow-hidden">
             {report.revenueOverTime.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-charcoal-400 italic">
                 No revenue records in this timeframe.
@@ -245,7 +245,7 @@ export function ReportsPage() {
             </div>
             <Badge variant="terracotta" size="xs">Categories</Badge>
           </div>
-          <div className="h-64 w-full pt-2">
+          <div className="h-64 w-full pt-2 min-w-0 overflow-hidden">
             {report.bookingsByEventType.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-charcoal-400 italic">
                 No booked events in this timeframe.
@@ -322,7 +322,7 @@ export function ReportsPage() {
             </div>
             <Badge size="xs">Workspaces</Badge>
           </div>
-          <div className="h-64 w-full pt-2">
+          <div className="h-64 w-full pt-2 min-w-0 overflow-hidden">
             {report.projectStatusDistribution.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-charcoal-400 italic">
                 No active projects found.
@@ -403,7 +403,7 @@ export function ReportsPage() {
             </div>
             <Badge variant="terracotta" size="xs">Proof Signoffs</Badge>
           </div>
-          <div className="h-64 w-full pt-2">
+          <div className="h-64 w-full pt-2 min-w-0 overflow-hidden">
             {report.approvalPipeline.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-charcoal-400 italic">
                 No deliverables in this timeframe.

@@ -201,8 +201,8 @@ export function ProjectDetailPage() {
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-charcoal-900 via-charcoal-900/80 to-transparent z-10" />
 
-        <div className="relative z-20 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
-          <div className="max-w-2xl">
+        <div className="relative z-20 p-4 sm:p-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-4 sm:gap-6">
+          <div className="max-w-2xl min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <Badge variant="terracotta" size="sm">{project.category}</Badge>
               <Badge
@@ -226,7 +226,7 @@ export function ProjectDetailPage() {
                 </span>
               ))}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-serif">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-white font-serif break-words">
               {project.title}
             </h1>
             <p className="text-xs sm:text-sm text-charcoal-300 mt-2">
@@ -242,8 +242,8 @@ export function ProjectDetailPage() {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="bg-surface/15 backdrop-blur-md p-3.5 rounded-xl border border-white/20 text-right min-w-[170px]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto shrink-0">
+            <div className="bg-surface/15 backdrop-blur-md p-3.5 rounded-xl border border-white/20 text-left sm:text-right w-full sm:w-auto min-w-0 sm:min-w-[170px]">
               <span className="text-[11px] text-charcoal-300 block">Workspace Progress</span>
               <span className="text-2xl font-bold text-white mt-0.5 block font-serif">
                 {projectProgress}%
@@ -256,7 +256,7 @@ export function ProjectDetailPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"

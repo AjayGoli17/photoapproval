@@ -222,7 +222,7 @@ export function CalendarPage() {
       />
 
       {/* Control Bar: View Switcher & Filters */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 bg-surface rounded-xl border border-border">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-4 bg-surface rounded-xl border border-border">
         {/* Current Date Display */}
         <div className="flex items-center gap-3">
           <CalendarIcon className="w-5 h-5 text-terracotta shrink-0" />
@@ -237,9 +237,9 @@ export function CalendarPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           {/* Category Toggles */}
-          <div className="flex items-center gap-2 bg-ivory-50 px-2.5 py-1.5 rounded-lg border border-border text-xs">
+          <div className="flex flex-wrap items-center gap-2 bg-ivory-50 px-2.5 py-1.5 rounded-lg border border-border text-xs">
             <label className="flex items-center gap-1.5 cursor-pointer text-charcoal font-medium select-none">
               <input
                 type="checkbox"

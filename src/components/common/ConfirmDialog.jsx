@@ -55,13 +55,13 @@ export function ConfirmDialog({
           {message}
         </p>
 
-        <div className="flex items-center gap-3 w-full justify-end">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:justify-end">
           <Button
             ref={cancelBtnRef}
             variant="outline"
             onClick={onClose}
             disabled={isLoading}
-            className="flex-1"
+            className="w-full sm:flex-1"
           >
             {cancelLabel}
           </Button>
@@ -70,7 +70,7 @@ export function ConfirmDialog({
             onClick={handleConfirm}
             isLoading={isLoading}
             disabled={isLoading}
-            className="flex-1"
+            className="w-full sm:flex-1"
           >
             {confirmLabel}
           </Button>

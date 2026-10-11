@@ -155,7 +155,7 @@ export function PaymentsPage() {
         subtitle="Manage client booking retainers, milestone payments, GST tax invoices, and bank settlements."
         badge={<Badge variant="sage">{payments.length} Invoices On Record</Badge>}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -188,7 +188,7 @@ export function PaymentsPage() {
       />
 
       {/* 4 Financial Summary KPI Cards (Req 4A) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card className="p-4 bg-surface">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-sage block">
             Total Revenue Received

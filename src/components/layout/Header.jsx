@@ -112,9 +112,9 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-surface/90 backdrop-blur-md border-b border-border h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-20 bg-surface/90 backdrop-blur-md border-b border-border h-16 px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2.5 sm:gap-4">
       {/* Left section: mobile hamburger & contextual title */}
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
           onClick={onOpenMobileNav}
           className="md:hidden p-2 rounded-xl text-charcoal-500 hover:text-charcoal hover:bg-ivory-200 transition-colors"
@@ -131,18 +131,19 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
       </div>
 
       {/* Center section: Global Search affordance */}
-      <div className="flex-1 max-w-md mx-2">
+      <div className="flex-1 max-w-md mx-1.5 sm:mx-2 min-w-0">
         <button
           type="button"
           onClick={onOpenSearch}
           aria-label="Open global search palette (Command+K)"
-          className="w-full flex items-center justify-between px-3.5 py-1.5 text-xs sm:text-sm bg-ivory-100/80 hover:bg-ivory-200/80 border border-border rounded-xl text-charcoal-400 hover:text-charcoal-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30 transition-colors shadow-subtle group"
+          className="w-full flex items-center justify-between px-3 py-1.5 text-xs sm:text-sm bg-ivory-100/80 hover:bg-ivory-200/80 border border-border rounded-xl text-charcoal-400 hover:text-charcoal-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30 transition-colors shadow-subtle group min-w-0"
         >
-          <div className="flex items-center gap-2.5 truncate">
+          <div className="flex items-center gap-2 truncate min-w-0">
             <Search className="w-4 h-4 text-charcoal-400 group-hover:text-terracotta transition-colors flex-shrink-0" />
-            <span className="truncate">Search clients, shoots, tasks...</span>
+            <span className="truncate hidden sm:inline">Search clients, shoots, tasks...</span>
+            <span className="truncate sm:hidden">Search...</span>
           </div>
-          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-medium text-charcoal-400 bg-surface border border-border rounded shadow-2xs">
+          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-medium text-charcoal-400 bg-surface border border-border rounded shadow-2xs flex-shrink-0">
             ⌘K
           </kbd>
         </button>
@@ -179,7 +180,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
             <div
               role="menu"
               aria-label="Quick creation actions"
-              className="absolute right-0 mt-2 w-56 bg-surface rounded-xl border border-border shadow-modal py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100"
+              className="fixed top-16 left-3 right-3 sm:left-auto sm:right-0 sm:absolute sm:top-auto sm:mt-2 w-auto sm:w-56 bg-surface rounded-xl border border-border shadow-modal py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100"
             >
               <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-charcoal-400">
                 Quick Actions
@@ -258,7 +259,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
             <div
               role="dialog"
               aria-label="Studio Activity Feed"
-              className="absolute right-0 mt-2 w-80 sm:w-96 bg-surface rounded-2xl border border-border shadow-modal py-3 z-40 animate-in fade-in zoom-in-95 duration-100"
+              className="fixed top-16 left-3 right-3 sm:left-auto sm:right-0 sm:absolute sm:top-auto sm:mt-2 w-auto sm:w-96 bg-surface rounded-2xl border border-border shadow-modal py-3 z-40 animate-in fade-in zoom-in-95 duration-100"
             >
               <div className="px-4 pb-2.5 border-b border-border flex items-center justify-between">
                 <div>
@@ -332,7 +333,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
             <div
               role="menu"
               aria-label="Studio Director Profile"
-              className="absolute right-0 mt-2 w-72 bg-surface rounded-2xl border border-border shadow-modal p-2 z-40 animate-in fade-in zoom-in-95 duration-100"
+              className="fixed top-16 left-3 right-3 sm:left-auto sm:right-0 sm:absolute sm:top-auto sm:mt-2 w-auto sm:w-72 bg-surface rounded-2xl border border-border shadow-modal p-2 z-40 animate-in fade-in zoom-in-95 duration-100"
             >
               <div className="p-3 border-b border-border/80">
                 <div className="flex items-center gap-3">

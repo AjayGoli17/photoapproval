@@ -11,11 +11,24 @@ import {
   INITIAL_PROJECT_NOTES,
 } from './seedData.js';
 
-const STORAGE_KEY = 'studioflow_demo_data_v1';
+const STORAGE_KEY = 'studioflow_demo_data_v2';
+const LEGACY_STORAGE_KEY = 'studioflow_demo_data_v1';
+
+// Legacy seed IDs used to differentiate original sample data from user-created records
+const LEGACY_SEED_IDS = {
+  clients: new Set(['client-1', 'client-2', 'client-3', 'client-4', 'client-5']),
+  events: new Set(['event-1', 'event-2', 'event-3', 'event-4', 'event-5']),
+  projects: new Set(['proj-1', 'proj-2', 'proj-3', 'proj-4', 'proj-5']),
+  tasks: new Set(['task-1', 'task-2', 'task-3', 'task-4', 'task-5', 'task-6', 'task-7']),
+  team: new Set(['team-1', 'team-2', 'team-3', 'team-4', 'team-5']),
+  deliverables: new Set(['deliv-1', 'deliv-2', 'deliv-3', 'deliv-4', 'deliv-5']),
+  payments: new Set(['pay-1', 'pay-2', 'pay-3', 'pay-4', 'pay-5', 'pay-6']),
+  projectNotes: new Set(['note-1', 'note-2', 'note-3', 'note-4']),
+};
 
 export function getInitialData() {
   return {
-    version: '1.0',
+    version: '2.0',
     clients: JSON.parse(JSON.stringify(INITIAL_CLIENTS)),
     events: JSON.parse(JSON.stringify(INITIAL_EVENTS)),
     projects: JSON.parse(JSON.stringify(INITIAL_PROJECTS)),
@@ -38,6 +51,51 @@ export function loadStoredData() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) {
+      // Check if user had custom-created records in legacy storage key
+      const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacyRaw) {
+        try {
+          const parsedLegacy = JSON.parse(legacyRaw);
+          if (parsedLegacy && typeof parsedLegacy === 'object') {
+            const userClients = (parsedLegacy.clients || []).filter((c) => !LEGACY_SEED_IDS.clients.has(c.id));
+            const userEvents = (parsedLegacy.events || []).filter((e) => !LEGACY_SEED_IDS.events.has(e.id));
+            const userProjects = (parsedLegacy.projects || []).filter((p) => !LEGACY_SEED_IDS.projects.has(p.id));
+            const userTasks = (parsedLegacy.tasks || []).filter((t) => !LEGACY_SEED_IDS.tasks.has(t.id));
+            const userTeam = (parsedLegacy.team || []).filter((tm) => !LEGACY_SEED_IDS.team.has(tm.id));
+            const userDeliverables = (parsedLegacy.deliverables || []).filter((d) => !LEGACY_SEED_IDS.deliverables.has(d.id));
+            const userPayments = (parsedLegacy.payments || []).filter((p) => !LEGACY_SEED_IDS.payments.has(p.id));
+            const userNotes = (parsedLegacy.projectNotes || []).filter((n) => !LEGACY_SEED_IDS.projectNotes.has(n.id));
+
+            const hasUserCreatedData =
+              userClients.length > 0 ||
+              userEvents.length > 0 ||
+              userProjects.length > 0 ||
+              userTasks.length > 0 ||
+              userTeam.length > 0 ||
+              userDeliverables.length > 0 ||
+              userPayments.length > 0 ||
+              userNotes.length > 0;
+
+            if (hasUserCreatedData) {
+              const initialWithUserData = getInitialData();
+              initialWithUserData.clients.push(...userClients);
+              initialWithUserData.events.push(...userEvents);
+              initialWithUserData.projects.push(...userProjects);
+              initialWithUserData.tasks.push(...userTasks);
+              initialWithUserData.team.push(...userTeam);
+              initialWithUserData.deliverables.push(...userDeliverables);
+              initialWithUserData.payments.push(...userPayments);
+              initialWithUserData.projectNotes.push(...userNotes);
+
+              saveStoredData(initialWithUserData);
+              return initialWithUserData;
+            }
+          }
+        } catch (legacyErr) {
+          console.warn('Error reading legacy storage data:', legacyErr);
+        }
+      }
+
       const initial = getInitialData();
       saveStoredData(initial);
       return initial;
@@ -63,7 +121,7 @@ export function loadStoredData() {
       parsed.projectNotes = JSON.parse(JSON.stringify(INITIAL_PROJECT_NOTES));
     }
 
-    // Migrate deliverables items if older version stored without photo items array
+    // Ensure deliverables items array is populated
     if (Array.isArray(parsed.deliverables)) {
       parsed.deliverables = parsed.deliverables.map((deliv) => {
         const seedMatch = INITIAL_DELIVERABLES.find((d) => d.id === deliv.id);
@@ -78,17 +136,11 @@ export function loadStoredData() {
         }
         return deliv;
       });
-      // Also include any new seed deliverables (deliv-4, deliv-5) if not present
-      INITIAL_DELIVERABLES.forEach((seedDeliv) => {
-        if (!parsed.deliverables.some((d) => d.id === seedDeliv.id)) {
-          parsed.deliverables.push(JSON.parse(JSON.stringify(seedDeliv)));
-        }
-      });
     } else {
       parsed.deliverables = JSON.parse(JSON.stringify(INITIAL_DELIVERABLES));
     }
 
-    // Migrate payments lineItems if missing
+    // Ensure payments lineItems is populated
     if (Array.isArray(parsed.payments)) {
       parsed.payments = parsed.payments.map((p) => {
         const seedMatch = INITIAL_PAYMENTS.find((sp) => sp.id === p.id);
@@ -145,6 +197,7 @@ export function clearAndResetStoredData() {
   if (typeof window === 'undefined' || !window.localStorage) return getInitialData();
   try {
     window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     const freshData = getInitialData();
     saveStoredData(freshData);
     return freshData;

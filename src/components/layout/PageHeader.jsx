@@ -8,7 +8,7 @@ export function Breadcrumbs({ items = [], className }) {
 
   return (
     <nav aria-label="Breadcrumb" className={cn('flex items-center text-xs text-charcoal-400', className)}>
-      <ol className="flex items-center space-x-1.5">
+      <ol className="flex flex-wrap items-center gap-1.5">
         <li>
           <Link
             to="/dashboard"
@@ -21,8 +21,8 @@ export function Breadcrumbs({ items = [], className }) {
         {items.map((item, idx) => {
           const isLast = idx === items.length - 1;
           return (
-            <li key={item.label || idx} className="flex items-center space-x-1.5">
-              <ChevronRight className="w-3.5 h-3.5 text-charcoal-300" />
+            <li key={item.label || idx} className="flex items-center gap-1.5">
+              <ChevronRight className="w-3.5 h-3.5 text-charcoal-300 flex-shrink-0" />
               {isLast || !item.to ? (
                 <span className="font-medium text-charcoal-700 truncate max-w-[200px]">
                   {item.label}
@@ -68,7 +68,7 @@ export function PageHeader({
             </p>
           )}
         </div>
-        {actions && <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">{actions}</div>}
+        {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
       </div>
     </div>
   );

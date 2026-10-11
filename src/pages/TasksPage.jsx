@@ -145,7 +145,7 @@ export function TasksPage() {
         subtitle="Coordinate darkroom processing, color grading batches, culling, and client proof deliverables."
         badge={<Badge variant="terracotta">{tasks.length} Total Tasks</Badge>}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -170,7 +170,7 @@ export function TasksPage() {
       />
 
       {/* Filter and Control Bar */}
-      <div className="flex flex-col gap-3 p-4 bg-surface rounded-xl border border-border">
+      <div className="flex flex-col gap-3 p-3.5 sm:p-4 bg-surface rounded-xl border border-border">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <SearchInput
             value={searchTerm}
@@ -285,7 +285,7 @@ export function TasksPage() {
             return (
               <div
                 key={col.id}
-                className={`flex flex-col rounded-xl border p-3 min-h-[480px] ${col.color}`}
+                className={`flex flex-col rounded-xl border p-3 min-h-[280px] sm:min-h-[480px] ${col.color}`}
               >
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-3 mb-2 border-b border-border/60">

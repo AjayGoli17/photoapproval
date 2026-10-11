@@ -213,7 +213,7 @@ export function RecordPaymentModal({
           />
         </FormField>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <FormField label="Payment Type">
             <FormSelect
               value={formData.type}
@@ -240,7 +240,7 @@ export function RecordPaymentModal({
           </FormField>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <FormField label="Date Received" required>
             <FormInput
               type="date"

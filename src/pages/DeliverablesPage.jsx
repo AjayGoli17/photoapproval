@@ -122,7 +122,7 @@ export function DeliverablesPage() {
         subtitle="Manage client photo selection galleries, album proof signoffs, digital master archives, and revision directives."
         badge={<Badge variant="sage">{deliverables.length} Deliverable Collections</Badge>}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -147,7 +147,7 @@ export function DeliverablesPage() {
       />
 
       {/* Summary Metrics Cards (Req 3A) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card className="p-4 bg-surface">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-charcoal-400 block">
             Workspaces with Proofs
@@ -298,7 +298,7 @@ export function DeliverablesPage() {
             const isRevision = deliv.clientApprovalStatus === 'Revisions Requested';
 
             return (
-              <Card key={deliv.id} className="p-5 sm:p-6 transition-all hover:border-charcoal/30">
+              <Card key={deliv.id} className="p-4 sm:p-6 transition-all hover:border-charcoal/30">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                   {/* Left Info */}
                   <div className="space-y-2 min-w-0 max-w-xl">

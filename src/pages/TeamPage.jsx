@@ -111,7 +111,7 @@ export function TeamPage() {
         subtitle="Manage lead photographers, retouchers, colorists, workload distribution, and task assignments."
         badge={<Badge variant="sage">{team.length} Active Artists</Badge>}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -142,7 +142,7 @@ export function TeamPage() {
           const activeTasksCount = workload.inProgressTasks + workload.overdueTasks;
 
           return (
-            <Card key={member.id} hover className="p-6 flex flex-col justify-between space-y-4">
+            <Card key={member.id} hover className="p-4 sm:p-6 flex flex-col justify-between space-y-4">
               <div>
                 {/* Header */}
                 <div className="flex items-start justify-between">

@@ -121,7 +121,7 @@ export function ClientsPage() {
         subtitle="Manage client relationships, wedding couples, luxury commercial brands, and booking contracts."
         badge={<Badge variant="terracotta">{clients.length} Total Profiles</Badge>}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -174,7 +174,7 @@ export function ClientsPage() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs font-medium bg-surface border border-border rounded-xl text-charcoal focus:outline-none focus:ring-2 focus:ring-terracotta/25"
+            className="px-3 py-1.5 text-xs font-medium bg-surface border border-border rounded-xl text-charcoal focus:outline-none focus:ring-2 focus:ring-terracotta/25 w-full sm:w-auto"
           >
             {categories.map((cat) => (
               <option key={cat} value={cat}>

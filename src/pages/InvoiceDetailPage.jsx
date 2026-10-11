@@ -109,7 +109,7 @@ export function InvoiceDetailPage() {
           ]}
         />
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {!isPaid && (
             <Button
               variant="primary"
@@ -142,7 +142,7 @@ export function InvoiceDetailPage() {
       </div>
 
       {/* Invoice Paper Document */}
-      <Card className="p-8 sm:p-12 bg-surface shadow-elevated border-border text-charcoal space-y-8 print:shadow-none print:border-none print:p-0">
+      <Card className="p-4 sm:p-12 bg-surface shadow-elevated border-border text-charcoal space-y-6 sm:space-y-8 print:shadow-none print:border-none print:p-0">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-border">
           <div>
@@ -266,7 +266,7 @@ export function InvoiceDetailPage() {
 
         {/* Summary Breakdown (Subtotal, GST, Total, Paid, Balance) */}
         <div className="pt-4 border-t border-border flex justify-end">
-          <div className="w-72 space-y-2 text-xs">
+          <div className="w-full sm:w-72 space-y-2 text-xs">
             <div className="flex justify-between text-charcoal-500">
               <span>Taxable Value:</span>
               <span className="font-mono">{formatCurrency(netSubtotal)}</span>

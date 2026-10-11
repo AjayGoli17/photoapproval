@@ -113,7 +113,7 @@ export function ProjectsPage() {
         subtitle="Manage end-to-end post-production pipelines, culling workflows, editing progress, and team deliverables."
         badge={<Badge variant="terracotta">{projects.length} Active Workspaces</Badge>}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -135,8 +135,8 @@ export function ProjectsPage() {
       />
 
       {/* Control bar: Filters, Search, View Mode */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-surface rounded-xl border border-border">
-        <div className="flex flex-wrap items-center gap-3 flex-1">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-4 bg-surface rounded-xl border border-border">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 flex-1">
           <SearchInput
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

@@ -69,7 +69,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* Studio Greeting Banner & Quick Actions */}
-      <div className="bg-gradient-to-r from-surface to-ivory-200 border border-border rounded-card p-6 sm:p-8 relative overflow-hidden shadow-subtle">
+      <div className="bg-gradient-to-r from-surface to-ivory-200 border border-border rounded-card p-4 sm:p-8 relative overflow-hidden shadow-subtle">
         <div className="max-w-2xl relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-pill bg-terracotta-light text-terracotta text-xs font-semibold uppercase tracking-wider mb-3">
             <Sparkles className="w-3.5 h-3.5" />
@@ -84,7 +84,7 @@ export function DashboardPage() {
             <span className="font-semibold text-charcoal-800">{metrics.pendingTasksCount} tasks pending</span>.
           </p>
 
-          <div className="flex flex-wrap items-center gap-3 mt-5">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 mt-4 sm:mt-5">
             <Button
               size="sm"
               variant="primary"
@@ -256,11 +256,11 @@ export function DashboardPage() {
                     key={evt.id}
                     hover
                     onClick={() => navigate(`/events/${evt.id}`)}
-                    className="p-4 sm:p-5 cursor-pointer"
+                    className="p-3.5 sm:p-5 cursor-pointer"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="space-y-1.5 min-w-0">
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant="terracotta" size="sm">{evt.eventType}</Badge>
                           <Badge size="sm">{evt.status}</Badge>
                           <Badge
@@ -283,7 +283,7 @@ export function DashboardPage() {
                             {formatDate(evt.startDate)} {evt.startTime && `at ${evt.startTime}`}
                           </span>
                           <span>•</span>
-                          <span className="flex items-center gap-1 truncate max-w-xs">
+                          <span className="flex items-center gap-1 truncate max-w-full sm:max-w-xs">
                             <MapPin className="w-3.5 h-3.5 text-charcoal-400 flex-shrink-0" />
                             <span className="truncate">{evt.venue}</span>
                           </span>

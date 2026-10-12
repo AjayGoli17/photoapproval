@@ -36,6 +36,27 @@ export function formatDate(dateString, formatStr = 'MMM d, yyyy') {
 }
 
 /**
+ * Compact shoot date / range, always on one line.
+ * "2026-12-14","2026-12-16" -> "14–16 Dec 2026"
+ * "2026-11-30","2026-12-02" -> "30 Nov – 2 Dec 2026"
+ * "2026-11-05","2026-11-05" -> "5 Nov 2026"
+ */
+export function formatDateRange(startStr, endStr) {
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const parse = (str) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str || '');
+    return m ? { y: +m[1], m: +m[2] - 1, d: +m[3] } : null;
+  };
+  const a = parse(startStr);
+  if (!a) return startStr || '—';
+  const b = parse(endStr);
+  if (!b || (a.y === b.y && a.m === b.m && a.d === b.d)) return `${a.d} ${MONTHS[a.m]} ${a.y}`;
+  if (a.y === b.y && a.m === b.m) return `${a.d}–${b.d} ${MONTHS[a.m]} ${a.y}`;
+  if (a.y === b.y) return `${a.d} ${MONTHS[a.m]} – ${b.d} ${MONTHS[b.m]} ${a.y}`;
+  return `${a.d} ${MONTHS[a.m]} ${a.y} – ${b.d} ${MONTHS[b.m]} ${b.y}`;
+}
+
+/**
  * Relative time or human readable time
  */
 export function formatRelativeTime(dateString) {

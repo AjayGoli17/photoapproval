@@ -1,0 +1,535 @@
+diff --git a/src/pages/EventsPage.jsx b/src/pages/EventsPage.jsx
+index 24e5fe5..a3320bf 100644
+--- a/src/pages/EventsPage.jsx
++++ b/src/pages/EventsPage.jsx
+@@ -3,31 +3,64 @@ import { Link, useNavigate } from 'react-router-dom';
+ import {
+   CalendarDays,
+   Plus,
+-  MapPin,
+-  Calendar,
+-  Clock,
+-  ChevronRight,
+-  Search,
+   Edit2,
+   Trash2,
+-  IndianRupee,
+-  Users,
+-  FolderKanban,
+-  DollarSign,
+-  Sparkles,
+ } from 'lucide-react';
+ import { useStudioData } from '../context/StudioDataContext';
+ import { useToast } from '../context/ToastContext';
+ import { PageHeader } from '../components/layout/PageHeader';
+-import { Card, MetricCard } from '../components/common/Card';
++import { Card } from '../components/common/Card';
+ import { Button } from '../components/common/Button';
+ import { Badge } from '../components/common/Badge';
+-import { Avatar } from '../components/common/Avatar';
+ import { SearchInput } from '../components/common/SearchInput';
+ import { EmptyState } from '../components/common/EmptyState';
+ import { ConfirmDialog } from '../components/common/ConfirmDialog';
+ import { EventModal } from '../components/modals/EventModal';
+-import { formatCurrency, formatDate } from '../utils/formatters';
++import { formatCurrency, formatDateRange, cn } from '../utils/formatters';
++
++// Column layout: fixed table with percentage widths so all nine columns fit
++// the content area without horizontal scrolling on desktop.
++const COL_WIDTHS = ['w-[20%]', 'w-[12%]', 'w-[13%]', 'w-[11%]', 'w-[7%]', 'w-[10%]', 'w-[10.5%]', 'w-[10.5%]', 'w-[6%]'];
++
++// Group-start cells get a thin vertical separator (Booking | Shoot | Billing | Status)
++const GROUP_START =
++  "relative pl-4 before:absolute before:left-0 before:inset-y-3.5 before:w-px before:bg-border-muted";
++
++const STATUS_VARIANT = {
++  Confirmed: 'charcoal',
++  'In Progress': 'terracotta',
++  Completed: 'sage',
++  Cancelled: 'rose',
++};
++
++const PAYMENT_TONE = {
++  Paid: { text: 'text-sage-dark', dot: 'bg-sage' },
++  'Partially Paid': { text: 'text-amber-dark', dot: 'bg-amber' },
++  Unpaid: { text: 'text-rose-dark', dot: 'bg-rose' },
++};
++
++function SegmentedFilter({ label, options, value, onChange }) {
++  return (
++    <div role="group" aria-label={label} className="flex items-center gap-0.5 bg-ivory-200 p-[3px] rounded-[9px]">
++      {options.map((opt) => (
++        <button
++          key={opt.id}
++          type="button"
++          aria-pressed={value === opt.id}
++          onClick={() => onChange(opt.id)}
++          className={cn(
++            'h-[30px] px-3 text-[13px] rounded-md whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/40',
++            value === opt.id
++              ? 'bg-white text-terracotta-dark font-semibold ring-1 ring-border'
++              : 'text-charcoal-500 hover:text-charcoal'
++          )}
++        >
++          {opt.label}
++        </button>
++      ))}
++    </div>
++  );
++}
+ 
+ export function EventsPage() {
+   const { events, clients, team, projects, getEventFinancials, deleteEvent, deleteAllEvents, createProjectForEvent } = useStudioData();
+@@ -62,14 +95,7 @@ export function EventsPage() {
+ 
+   const todayStr = new Date().toISOString().split('T')[0];
+ 
+-  // Summary Metrics
+   const upcomingCount = events.filter((e) => e.startDate >= todayStr && e.status !== 'Cancelled').length;
+-  const activeWorkspacesCount = events.filter((e) => projects.some((p) => p.eventId === e.id)).length;
+-  const totalAgreedRevenue = events.reduce((sum, e) => sum + Number(e.packageValue || 0), 0);
+-  const totalPendingBalance = events.reduce((sum, e) => {
+-    const fin = getEventFinancials(e.id);
+-    return sum + (fin?.outstandingBalance || 0);
+-  }, 0);
+ 
+   const filteredEvents = events.filter((e) => {
+     const term = searchTerm.toLowerCase().trim();
+@@ -127,11 +153,10 @@ export function EventsPage() {
+   };
+ 
+   return (
+-    <div className="space-y-6 animate-in fade-in duration-150">
++    <div className="space-y-4 animate-in fade-in duration-150">
+       <PageHeader
+-        title="Events & Shoot Bookings"
+-        subtitle="Manage royal weddings, destination ceremonies, fashion editorial days, and commercial campaigns."
+-        badge={<Badge variant="sage">{events.length} Total Bookings</Badge>}
++        title="Events & Bookings"
++        className="mb-0 sm:mb-0"
+         actions={
+           <div className="flex items-center gap-2 flex-wrap">
+             <Button
+@@ -154,96 +179,46 @@ export function EventsPage() {
+         }
+       />
+ 
+-      {/* Summary KPI Tiles */}
+-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+-        <MetricCard
+-          label="Total Bookings"
+-          value={events.length}
+-          subtitle="Contracted shoots"
+-          icon={CalendarDays}
+-        />
+-        <MetricCard
+-          label="Upcoming Shoots"
+-          value={upcomingCount}
+-          subtitle="Scheduled on calendar"
+-          icon={Calendar}
+-        />
+-        <MetricCard
+-          label="Workspaces Active"
+-          value={activeWorkspacesCount}
+-          subtitle={`${events.length - activeWorkspacesCount} pending setup`}
+-          icon={FolderKanban}
+-        />
+-        <MetricCard
+-          label="Total Booked Value"
+-          value={formatCurrency(totalAgreedRevenue)}
+-          subtitle={totalPendingBalance > 0 ? `${formatCurrency(totalPendingBalance)} pending` : 'All settled'}
+-          icon={DollarSign}
+-        />
+-      </div>
+-
+       {/* Filter and Search Bar */}
+-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
++      <div className="flex flex-wrap items-center gap-3">
+         <SearchInput
+           value={searchTerm}
+           onChange={(e) => setSearchTerm(e.target.value)}
+           onClear={() => setSearchTerm('')}
+-          placeholder="Search by event title, client, venue, or type..."
+-          className="w-full lg:w-80"
++          placeholder="Search by event title, client, venue..."
++          className="w-full lg:w-[340px]"
+         />
+ 
+-        <div className="flex flex-wrap items-center gap-2">
+-          {/* Timeline Segmentation: All vs Upcoming vs Past */}
+-          <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-border">
+-            {[
+-              { id: 'All', label: 'All Dates' },
+-              { id: 'Upcoming', label: `Upcoming (${upcomingCount})` },
+-              { id: 'Past', label: 'Past / Done' },
+-            ].map((tab) => (
+-              <button
+-                key={tab.id}
+-                onClick={() => setDateFilter(tab.id)}
+-                className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+-                  dateFilter === tab.id
+-                    ? 'bg-terracotta text-white shadow-2xs'
+-                    : 'text-charcoal-600 hover:text-charcoal hover:bg-ivory-100'
+-                }`}
+-              >
+-                {tab.label}
+-              </button>
+-            ))}
+-          </div>
++        <SegmentedFilter
++          label="Date filter"
++          value={dateFilter}
++          onChange={setDateFilter}
++          options={[
++            { id: 'All', label: 'All Dates' },
++            { id: 'Upcoming', label: `Upcoming (${upcomingCount})` },
++            { id: 'Past', label: 'Past / Done' },
++          ]}
++        />
+ 
+-          {/* Status Tabs */}
+-          <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-border overflow-x-auto">
+-            {statuses.map((st) => (
+-              <button
+-                key={st}
+-                onClick={() => setStatusFilter(st)}
+-                className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+-                  statusFilter === st
+-                    ? 'bg-charcoal text-white shadow-2xs'
+-                    : 'text-charcoal-600 hover:text-charcoal hover:bg-ivory-100'
+-                }`}
+-              >
+-                {st}
+-              </button>
+-            ))}
+-          </div>
++        <SegmentedFilter
++          label="Booking status filter"
++          value={statusFilter}
++          onChange={setStatusFilter}
++          options={statuses.map((st) => ({ id: st, label: st }))}
++        />
+ 
+-          {/* Event Type Filter */}
+-          <select
+-            value={typeFilter}
+-            onChange={(e) => setTypeFilter(e.target.value)}
+-            className="px-3 py-1.5 text-xs font-medium bg-surface border border-border rounded-xl text-charcoal focus:outline-none focus:ring-2 focus:ring-terracotta/25 w-full sm:w-auto"
+-          >
+-            {eventTypes.map((t) => (
+-              <option key={t} value={t}>
+-                {t === 'All' ? 'All Event Types' : t}
+-              </option>
+-            ))}
+-          </select>
+-        </div>
++        <select
++          value={typeFilter}
++          onChange={(e) => setTypeFilter(e.target.value)}
++          aria-label="Event type"
++          className="h-[38px] px-3 text-[13px] font-medium bg-surface border border-border-strong rounded-lg text-charcoal focus:outline-none focus:ring-2 focus:ring-terracotta/25 w-full sm:w-auto lg:ml-auto"
++        >
++          {eventTypes.map((t) => (
++            <option key={t} value={t}>
++              {t === 'All' ? 'All Event Types' : t}
++            </option>
++          ))}
++        </select>
+       </div>
+ 
+       {/* Events Table / List */}
+@@ -270,32 +245,48 @@ export function EventsPage() {
+         />
+       ) : (
+         <Card className="overflow-hidden">
++          {/* Only scrolls inside the card on narrow viewports; the page itself never scrolls sideways */}
+           <div className="overflow-x-auto custom-scrollbar">
+-            <table className="w-full text-left text-sm border-collapse min-w-[750px]">
+-              <thead className="bg-ivory-50 border-b border-border text-xs uppercase tracking-wider text-charcoal-500 font-semibold select-none">
+-                <tr>
+-                  <th className="p-4">Event & Type</th>
+-                  <th className="p-4">Client</th>
+-                  <th className="p-4">Shoot Date & Time</th>
+-                  <th className="p-4">Venue</th>
+-                  <th className="p-4 text-center">Workspace</th>
+-                  <th className="p-4 text-right">Agreed Price</th>
+-                  <th className="p-4 text-center">Payment</th>
+-                  <th className="p-4">Status</th>
+-                  <th className="p-4 text-right">Actions</th>
++            <table className="w-full min-w-[1120px] table-fixed text-left border-collapse">
++              <colgroup>
++                {COL_WIDTHS.map((w) => (
++                  <col key={w} className={w} />
++                ))}
++              </colgroup>
++              <thead className="select-none border-b border-border">
++                {/* Column groups */}
++                <tr className="border-b border-border-muted">
++                  <th colSpan={2} className="h-[34px] pl-6 pr-2.5 pb-2 align-bottom text-xs font-semibold text-terracotta-dark whitespace-nowrap">Booking</th>
++                  <th colSpan={3} className="h-[34px] px-2.5 pb-2 align-bottom text-xs font-semibold text-terracotta-dark whitespace-nowrap">Shoot</th>
++                  <th colSpan={2} className="h-[34px] px-2.5 pb-2 align-bottom text-xs font-semibold text-terracotta-dark whitespace-nowrap">Billing</th>
++                  <th colSpan={2} className="h-[34px] px-2.5 pb-2 align-bottom text-xs font-semibold text-terracotta-dark whitespace-nowrap">Status</th>
++                </tr>
++                <tr className="text-[12.5px] font-medium text-charcoal-400">
++                  <th scope="col" className="h-[38px] pl-6 pr-2.5 whitespace-nowrap">Event & Type</th>
++                  <th scope="col" className="h-[38px] px-2.5 whitespace-nowrap">Client</th>
++                  <th scope="col" className={cn('h-[38px] pr-2.5 whitespace-nowrap', GROUP_START)}>Shoot Date & Time</th>
++                  <th scope="col" className="h-[38px] px-2.5 whitespace-nowrap">Venue</th>
++                  <th scope="col" className="h-[38px] px-2.5 whitespace-nowrap">Workspace</th>
++                  <th scope="col" className={cn('h-[38px] pr-2.5 text-right whitespace-nowrap', GROUP_START)}>Agreed Price</th>
++                  <th scope="col" className="h-[38px] px-2.5 whitespace-nowrap">Payment</th>
++                  <th scope="col" className={cn('h-[38px] pr-2.5 whitespace-nowrap', GROUP_START)}>Status</th>
++                  <th scope="col" className="h-[38px] pl-2.5 pr-3 text-right whitespace-nowrap">Actions</th>
+                 </tr>
+               </thead>
+-              <tbody className="divide-y divide-border/60">
++              <tbody>
+                 {filteredEvents.map((evt) => {
+                   const client = clients.find((c) => c.id === evt.clientId);
+                   const fin = getEventFinancials(evt.id);
+                   const linkedProject = projects.find((p) => p.eventId === evt.id);
++                  const payTone = PAYMENT_TONE[fin.paymentStatus] || PAYMENT_TONE.Unpaid;
++                  const eventSub = [evt.eventType, evt.packageName].filter(Boolean).join(' • ');
+ 
+                   return (
+                     <tr
+                       key={evt.id}
+                       onClick={() => navigate(`/events/${evt.id}`)}
+                       onKeyDown={(e) => {
++                        if (e.target !== e.currentTarget) return;
+                         if (e.key === 'Enter' || e.key === ' ') {
+                           e.preventDefault();
+                           navigate(`/events/${evt.id}`);
+@@ -303,76 +294,68 @@ export function EventsPage() {
+                       }}
+                       tabIndex={0}
+                       role="button"
+-                      className="hover:bg-ivory-50/70 transition-colors cursor-pointer group focus:outline-none focus-visible:bg-ivory-100 focus-visible:ring-1 focus-visible:ring-terracotta/40"
++                      className="h-[62px] border-b border-border-muted hover:bg-ivory-50/70 transition-colors cursor-pointer group focus:outline-none focus-visible:bg-ivory-100 focus-visible:ring-1 focus-visible:ring-terracotta/40"
+                     >
+                       {/* Event Title & Type */}
+-                      <td className="p-4">
+-                        <div className="min-w-0">
+-                          <span className="font-semibold text-charcoal group-hover:text-terracotta transition-colors block truncate max-w-xs">
+-                            {evt.title}
+-                          </span>
+-                          <span className="text-xs text-charcoal-400 block mt-0.5">
+-                            {evt.eventType} {evt.packageName ? `• ${evt.packageName}` : ''}
+-                          </span>
+-                        </div>
++                      <td className="pl-6 pr-2.5 align-middle">
++                        <span
++                          title={evt.title}
++                          className="block truncate text-[14.5px] font-semibold tracking-tight text-charcoal group-hover:text-terracotta-dark transition-colors"
++                        >
++                          {evt.title}
++                        </span>
++                        <span title={eventSub} className="block truncate mt-0.5 text-xs text-charcoal-400">
++                          {eventSub}
++                        </span>
+                       </td>
+ 
+                       {/* Client */}
+-                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
++                      <td className="px-2.5 align-middle" onClick={(e) => e.stopPropagation()}>
+                         {client ? (
+                           <Link
+                             to={`/clients/${client.id}`}
+-                            className="font-medium text-charcoal hover:text-terracotta transition-colors text-xs inline-flex items-center gap-1.5"
++                            title={client.name}
++                            className="block truncate text-[13.5px] font-medium text-charcoal hover:text-terracotta-dark transition-colors"
+                           >
+-                            <Avatar src={client.avatar} name={client.name} size="xs" />
+-                            <span className="truncate max-w-[140px]">{client.name}</span>
++                            {client.name}
+                           </Link>
+                         ) : (
+-                          <span className="text-xs text-charcoal-400">Unassigned</span>
++                          <span className="text-[13.5px] text-charcoal-400">Unassigned</span>
+                         )}
+                       </td>
+ 
+-                      {/* Shoot Date & Time */}
+-                      <td className="p-4 text-xs text-charcoal-600">
+-                        <div className="space-y-0.5">
+-                          <span className="font-medium text-charcoal block">
+-                            {formatDate(evt.startDate)}
+-                            {evt.endDate !== evt.startDate && ` to ${formatDate(evt.endDate)}`}
+-                          </span>
+-                          {evt.startTime && (
+-                            <span className="text-[11px] text-charcoal-400 flex items-center gap-1">
+-                              <Clock className="w-3 h-3" />
+-                              {evt.startTime}
+-                            </span>
+-                          )}
+-                        </div>
++                      {/* Shoot Date & Time: date on one line, time directly below */}
++                      <td className={cn('pr-2.5 align-middle', GROUP_START)}>
++                        <span className="block whitespace-nowrap text-[13.5px] font-medium tabular-nums text-charcoal">
++                          {formatDateRange(evt.startDate, evt.endDate)}
++                        </span>
++                        <span className="block whitespace-nowrap mt-0.5 text-xs tabular-nums text-charcoal-400">
++                          {evt.startTime || 'Time TBD'}
++                        </span>
+                       </td>
+ 
+                       {/* Venue */}
+-                      <td className="p-4 text-xs text-charcoal-600">
+-                        <div className="flex items-center gap-1.5 truncate max-w-[180px]">
+-                          <MapPin className="w-3.5 h-3.5 text-charcoal-400 flex-shrink-0" />
+-                          <span className="truncate">{evt.venue}</span>
+-                        </div>
++                      <td className="px-2.5 align-middle">
++                        <span title={evt.venue} className="block truncate text-[13.5px] text-charcoal-600">
++                          {evt.venue}
++                        </span>
+                       </td>
+ 
+                       {/* Production Workspace */}
+-                      <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
++                      <td className="px-2.5 align-middle" onClick={(e) => e.stopPropagation()}>
+                         {linkedProject ? (
+                           <Link
+                             to={`/projects/${linkedProject.id}`}
+-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20 transition-colors"
++                            className="block truncate text-[13px] text-charcoal-600 hover:text-terracotta-dark hover:underline underline-offset-2 transition-colors"
+                             title={`Open workspace for ${evt.title}`}
+                           >
+-                            <FolderKanban className="w-3.5 h-3.5" />
+-                            <span>{linkedProject.status}</span>
++                            {linkedProject.status}
+                           </Link>
+                         ) : (
+                           <Button
+                             size="xs"
+                             variant="outline"
+                             className="text-xs"
+-                            leftIcon={<Plus className="w-3 h-3" />}
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               try {
+@@ -390,56 +373,54 @@ export function EventsPage() {
+                       </td>
+ 
+                       {/* Agreed Price */}
+-                      <td className="p-4 text-right">
+-                        <span className="font-bold text-charcoal block">
++                      <td className={cn('pr-2.5 text-right align-middle', GROUP_START)}>
++                        <span className="block whitespace-nowrap text-sm font-semibold tabular-nums text-charcoal">
+                           {formatCurrency(evt.packageValue)}
+                         </span>
+-                        {fin.outstandingBalance > 0 && (
+-                          <span className="text-[10px] text-rose block">
+-                            Bal: {formatCurrency(fin.outstandingBalance)}
+-                          </span>
+-                        )}
+                       </td>
+ 
+-                      {/* Payment Status */}
+-                      <td className="p-4 text-center">
++                      {/* Payment: status with outstanding balance underneath */}
++                      <td className="px-2.5 align-middle">
++                        <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap text-[12.5px] font-medium', payTone.text)}>
++                          <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', payTone.dot)} aria-hidden="true" />
++                          {fin.paymentStatus}
++                        </span>
++                        <span className="block whitespace-nowrap mt-0.5 text-xs tabular-nums text-charcoal-400">
++                          {fin.outstandingBalance > 0 ? `${formatCurrency(fin.outstandingBalance)} due` : 'Settled'}
++                        </span>
++                      </td>
++
++                      {/* Booking Status */}
++                      <td className={cn('pr-2.5 align-middle', GROUP_START)}>
+                         <Badge
+                           size="sm"
+-                          variant={
+-                            fin.paymentStatus === 'Paid'
+-                              ? 'sage'
+-                              : fin.paymentStatus === 'Partially Paid'
+-                              ? 'amber'
+-                              : 'default'
+-                          }
++                          variant={STATUS_VARIANT[evt.status] || 'default'}
++                          className="text-xs px-2 py-1 whitespace-nowrap"
+                         >
+-                          {fin.paymentStatus}
++                          {evt.status}
+                         </Badge>
+                       </td>
+ 
+-                      {/* Status */}
+-                      <td className="p-4">
+-                        <Badge size="sm">{evt.status}</Badge>
+-                      </td>
+-
+                       {/* Actions */}
+-                      <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
+-                        <div className="flex items-center justify-end gap-1">
++                      <td className="pl-2.5 pr-3 align-middle" onClick={(e) => e.stopPropagation()}>
++                        <div className="flex items-center justify-end gap-0.5">
+                           <button
+                             type="button"
+                             onClick={(e) => handleOpenEdit(evt, e)}
+-                            className="p-1.5 rounded-lg text-charcoal-400 hover:text-charcoal hover:bg-ivory-200 transition-colors"
++                            className="p-1.5 rounded-md text-charcoal-400 hover:text-terracotta-dark hover:bg-ivory-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/40"
+                             title="Edit Event"
++                            aria-label={`Edit ${evt.title}`}
+                           >
+-                            <Edit2 className="w-4 h-4" />
++                            <Edit2 className="w-3.5 h-3.5" />
+                           </button>
+                           <button
+                             type="button"
+                             onClick={(e) => handleInitiateDelete(evt, e)}
+-                            className="p-1.5 rounded-lg text-charcoal-400 hover:text-rose hover:bg-rose-light transition-colors"
++                            className="p-1.5 rounded-md text-charcoal-400 hover:text-rose hover:bg-rose-light transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose/40"
+                             title="Delete Event"
++                            aria-label={`Delete ${evt.title}`}
+                           >
+-                            <Trash2 className="w-4 h-4" />
++                            <Trash2 className="w-3.5 h-3.5" />
+                           </button>
+                         </div>
+                       </td>
+@@ -449,6 +430,9 @@ export function EventsPage() {
+               </tbody>
+             </table>
+           </div>
++          <div className="px-6 py-3 border-t border-border-muted text-[12.5px] text-charcoal-400">
++            Showing {filteredEvents.length} of {events.length} bookings
++          </div>
+         </Card>
+       )}
+ 
+diff --git a/src/utils/formatters.js b/src/utils/formatters.js
+index b86a86f..0034872 100644
+--- a/src/utils/formatters.js
++++ b/src/utils/formatters.js
+@@ -35,6 +35,27 @@ export function formatDate(dateString, formatStr = 'MMM d, yyyy') {
+   }
+ }
+ 
++/**
++ * Compact shoot date / range, always on one line.
++ * "2026-12-14","2026-12-16" -> "14–16 Dec 2026"
++ * "2026-11-30","2026-12-02" -> "30 Nov – 2 Dec 2026"
++ * "2026-11-05","2026-11-05" -> "5 Nov 2026"
++ */
++export function formatDateRange(startStr, endStr) {
++  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
++  const parse = (str) => {
++    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str || '');
++    return m ? { y: +m[1], m: +m[2] - 1, d: +m[3] } : null;
++  };
++  const a = parse(startStr);
++  if (!a) return startStr || '—';
++  const b = parse(endStr);
++  if (!b || (a.y === b.y && a.m === b.m && a.d === b.d)) return `${a.d} ${MONTHS[a.m]} ${a.y}`;
++  if (a.y === b.y && a.m === b.m) return `${a.d}–${b.d} ${MONTHS[a.m]} ${a.y}`;
++  if (a.y === b.y) return `${a.d} ${MONTHS[a.m]} – ${b.d} ${MONTHS[b.m]} ${a.y}`;
++  return `${a.d} ${MONTHS[a.m]} ${a.y} – ${b.d} ${MONTHS[b.m]} ${b.y}`;
++}
++
+ /**
+  * Relative time or human readable time
+  */

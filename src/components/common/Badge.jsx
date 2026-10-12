@@ -36,21 +36,23 @@ export function Badge({
   let resolvedVariant = variant;
   if (variant === 'default' && typeof children === 'string') {
     const statusLower = children.toLowerCase();
-    if (['active', 'confirmed', 'paid', 'approved', 'completed'].includes(statusLower)) {
+    if (['active', 'confirmed', 'paid', 'approved', 'completed', 'settled', 'delivered'].includes(statusLower)) {
       resolvedVariant = 'sage';
-    } else if (['in progress', 'editing', 'shooting', 'culling'].includes(statusLower)) {
+    } else if (['in progress', 'editing', 'shooting', 'culling', 'in production'].includes(statusLower)) {
       resolvedVariant = 'terracotta';
-    } else if (['pending', 'planning', 'in review', 'draft', 'inquiry'].includes(statusLower)) {
+    } else if (['pending', 'planning', 'in review', 'pending review', 'partially approved', 'draft', 'inquiry'].includes(statusLower)) {
       resolvedVariant = 'amber';
-    } else if (['overdue', 'cancelled', 'rejected', 'urgent'].includes(statusLower)) {
+    } else if (['overdue', 'cancelled', 'rejected', 'revisions requested', 'urgent', 'unpaid'].includes(statusLower)) {
       resolvedVariant = 'rose';
+    } else if (['archived', 'closed'].includes(statusLower)) {
+      resolvedVariant = 'charcoal';
     }
   }
 
   return (
     <span
       className={cn(
-        'inline-flex items-center font-medium rounded-pill border select-none leading-none',
+        'inline-flex items-center font-medium rounded-pill border select-none leading-none tracking-normal',
         variants[resolvedVariant] || variants.default,
         sizes[size],
         className
@@ -62,9 +64,10 @@ export function Badge({
             'w-1.5 h-1.5 rounded-full flex-shrink-0',
             dotColors[resolvedVariant] || dotColors.default
           )}
+          aria-hidden="true"
         />
       )}
-      {children}
+      <span>{children}</span>
     </span>
   );
 }

@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Users,
   CalendarDays,
   FolderKanban,
   CheckSquare,
-  ArrowUpRight,
-  TrendingUp,
   Clock,
   Sparkles,
   Camera,
@@ -14,14 +12,24 @@ import {
   ChevronRight,
   Plus,
   AlertCircle,
+  AlertTriangle,
   Calendar,
   MapPin,
+  CheckCircle2,
+  FileText,
+  RotateCcw,
+  Eye,
+  ArrowUpRight,
+  User,
+  ExternalLink,
 } from 'lucide-react';
 import { useStudioData } from '../context/StudioDataContext';
-import { Card, CardHeader, CardContent } from '../components/common/Card';
+import { Card, CardHeader, CardContent, MetricCard } from '../components/common/Card';
 import { Badge, PriorityBadge } from '../components/common/Badge';
 import { Avatar } from '../components/common/Avatar';
 import { Button } from '../components/common/Button';
+import { EmptyState } from '../components/common/EmptyState';
+import { Alert } from '../components/common/Alert';
 import { ClientModal } from '../components/modals/ClientModal';
 import { EventModal } from '../components/modals/EventModal';
 import { TaskModal } from '../components/modals/TaskModal';
@@ -33,11 +41,14 @@ export function DashboardPage() {
     projects,
     events,
     tasks,
-    activityLog,
-    clients,
-    team,
-    settings,
+    deliverables = [],
+    activityLog = [],
+    clients = [],
+    team = [],
+    settings = {},
     getEventFinancials,
+    toggleTaskComplete,
+    getProjectProgress,
   } = useStudioData();
 
   const navigate = useNavigate();
@@ -47,44 +58,121 @@ export function DashboardPage() {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
-  // Filter upcoming events (not completed or cancelled) sorted chronologically
-  const upcomingEvents = [...events]
-    .filter((e) => e.status !== 'Completed' && e.status !== 'Cancelled')
-    .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
-    .slice(0, 4);
+  // Today reference for date math
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
-  // Active production projects
-  const activeProjects = [...projects]
-    .filter((p) => p.status !== 'Completed')
-    .slice(0, 3);
+  // =========================================================
+  // 1. ACTION REQUIRED CALCULATIONS (High Priority Operational Items)
+  // =========================================================
 
-  // Group pending tasks: Overdue, Due Today, Upcoming
-  const todayStr = new Date().toISOString().split('T')[0];
-  const pendingTasks = tasks.filter((t) => t.status !== 'Completed' && t.status !== 'Done');
+  // Albums/Deliverables requiring revision work
+  const revisionDeliverables = useMemo(() => {
+    return deliverables.filter((d) => d.clientApprovalStatus === 'Revisions Requested');
+  }, [deliverables]);
 
-  const overdueTasks = pendingTasks.filter((t) => t.dueDate < todayStr);
-  const dueTodayTasks = pendingTasks.filter((t) => t.dueDate === todayStr);
-  const futureTasks = pendingTasks.filter((t) => t.dueDate > todayStr).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  // Albums/Deliverables pending client approval
+  const pendingDeliverables = useMemo(() => {
+    return deliverables.filter(
+      (d) =>
+        d.clientApprovalStatus === 'Pending' ||
+        d.clientApprovalStatus === 'In Review' ||
+        d.clientApprovalStatus === 'Pending Review' ||
+        d.clientApprovalStatus === 'Partially Approved'
+    );
+  }, [deliverables]);
+
+  // Pending tasks split by urgency
+  const pendingTasks = useMemo(() => {
+    return tasks.filter((t) => t.status !== 'Completed' && t.status !== 'Done');
+  }, [tasks]);
+
+  const overdueTasks = useMemo(() => {
+    return pendingTasks
+      .filter((t) => t.dueDate && t.dueDate < todayStr)
+      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  }, [pendingTasks, todayStr]);
+
+  const dueTodayTasks = useMemo(() => {
+    return pendingTasks.filter((t) => t.dueDate === todayStr);
+  }, [pendingTasks, todayStr]);
+
+  const upcomingHighPriorityTasks = useMemo(() => {
+    return pendingTasks
+      .filter((t) => t.dueDate && t.dueDate > todayStr && (t.priority === 'High' || t.priority === 'Urgent'))
+      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+      .slice(0, 4);
+  }, [pendingTasks, todayStr]);
+
+  // Total urgent count
+  const totalUrgentCount =
+    revisionDeliverables.length + overdueTasks.length + dueTodayTasks.length;
+
+  // =========================================================
+  // 2. UPCOMING SHOOTS & EVENTS (Chronological next 4)
+  // =========================================================
+  const upcomingEvents = useMemo(() => {
+    return [...events]
+      .filter((e) => e.status !== 'Completed' && e.status !== 'Cancelled')
+      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+      .slice(0, 4);
+  }, [events]);
+
+  // =========================================================
+  // 3. ACTIVE PROJECTS IN PRODUCTION (With progress & deadlines)
+  // =========================================================
+  const activeProjects = useMemo(() => {
+    return [...projects]
+      .filter((p) => p.status !== 'Completed')
+      .map((p) => {
+        const progress = getProjectProgress ? getProjectProgress(p.id) : p.progressPercent || 0;
+        const client = clients.find((c) => c.id === p.clientId);
+        const event = events.find((e) => e.id === p.eventId);
+        const projectDeliverables = deliverables.filter((d) => d.projectId === p.id);
+        const hasRevisions = projectDeliverables.some((d) => d.clientApprovalStatus === 'Revisions Requested');
+        const isPendingApproval = projectDeliverables.some(
+          (d) => d.clientApprovalStatus === 'In Review' || d.clientApprovalStatus === 'Pending'
+        );
+
+        return {
+          ...p,
+          progress,
+          clientName: client?.name || 'Unassigned Client',
+          eventName: event?.title || null,
+          hasRevisions,
+          isPendingApproval,
+        };
+      })
+      .slice(0, 3);
+  }, [projects, getProjectProgress, clients, events, deliverables]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-200">
-      {/* Studio Greeting Banner & Quick Actions */}
-      <div className="bg-gradient-to-r from-surface to-ivory-200 border border-border rounded-card p-4 sm:p-8 relative overflow-hidden shadow-subtle">
-        <div className="max-w-2xl relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-pill bg-terracotta-light text-terracotta text-xs font-semibold uppercase tracking-wider mb-3">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
+      {/* Studio Greeting Banner & Action Affordances */}
+      <div className="bg-gradient-to-r from-surface via-surface to-ivory-200 border border-border rounded-card p-4 sm:p-6 lg:p-8 relative overflow-hidden shadow-subtle">
+        <div className="max-w-3xl relative z-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-pill bg-terracotta-light text-terracotta text-xs font-semibold uppercase tracking-wider mb-2 sm:mb-3">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Studio Production Desk</span>
           </div>
+
           <h1 className="editorial-heading text-2xl sm:text-3xl lg:text-4xl font-normal text-charcoal tracking-tight">
-            {settings.studioName}
+            {settings.studioName || 'StudioFlow Photography'}
           </h1>
-          <p className="text-sm sm:text-base text-charcoal-600 mt-2 leading-relaxed">
-            Managing fine-art weddings, editorial lookbooks, and client proof approvals. You have{' '}
-            <span className="font-semibold text-terracotta">{metrics.upcomingEventsCount} upcoming events</span> and{' '}
-            <span className="font-semibold text-charcoal-800">{metrics.pendingTasksCount} tasks pending</span>.
+
+          <p className="text-xs sm:text-sm text-charcoal-600 mt-1.5 sm:mt-2 leading-relaxed">
+            Managing fine-art wedding commissions, editorial lookbooks, and client proof approvals.{' '}
+            {totalUrgentCount > 0 ? (
+              <span className="font-semibold text-rose">
+                {totalUrgentCount} operational item{totalUrgentCount > 1 ? 's' : ''} require immediate attention.
+              </span>
+            ) : (
+              <span className="font-semibold text-sage-dark">
+                All client album proofings and darkroom queues are currently on schedule.
+              </span>
+            )}
           </p>
 
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 mt-4 sm:mt-5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-4 sm:mt-5">
             <Button
               size="sm"
               variant="primary"
@@ -99,7 +187,7 @@ export function DashboardPage() {
               leftIcon={<Camera className="w-4 h-4" />}
               onClick={() => setIsEventModalOpen(true)}
             >
-              Create Event
+              Book Shoot / Event
             </Button>
             <Button
               size="sm"
@@ -112,214 +200,356 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="hidden lg:flex absolute right-8 top-1/2 -translate-y-1/2 w-32 h-32 rounded-full border border-terracotta/20 items-center justify-center bg-terracotta/5">
+        <div className="hidden lg:flex absolute right-8 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full border border-terracotta/20 items-center justify-center bg-terracotta/5">
           <Camera className="w-12 h-12 text-terracotta/40 stroke-[1.5]" />
         </div>
       </div>
 
-      {/* KPI Cards — Dynamic derived values from context */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        {/* KPI 1: Total Clients */}
-        <Card
-          hover
-          onClick={() => navigate('/clients')}
-          className="p-5 cursor-pointer group hover:border-terracotta/50"
-        >
+      {/* ========================================================= */}
+      {/* SECTION 1: WHAT NEEDS ATTENTION NOW (Priority Operations) */}
+      {/* ========================================================= */}
+      {totalUrgentCount > 0 && (
+        <section aria-labelledby="urgent-operations-heading" className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-charcoal-400">
-              Total Clients
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose animate-pulse" />
+              <h2 id="urgent-operations-heading" className="text-sm sm:text-base font-bold text-charcoal uppercase tracking-wider">
+                Needs Studio Attention Now
+              </h2>
+            </div>
+            <span className="text-xs font-semibold text-rose bg-rose-light px-2.5 py-0.5 rounded-pill border border-rose-border">
+              {totalUrgentCount} Urgent Action{totalUrgentCount > 1 ? 's' : ''}
             </span>
-            <div className="w-8 h-8 rounded-lg bg-charcoal-100 text-charcoal flex items-center justify-center group-hover:bg-terracotta group-hover:text-white transition-colors">
-              <Users className="w-4 h-4" />
-            </div>
           </div>
-          <div className="mt-3">
-            <div className="text-3xl font-bold text-charcoal tracking-tight">
-              {metrics.totalClientsCount}
-            </div>
-            <div className="text-xs text-charcoal-500 mt-1 flex items-center gap-1">
-              <span>View client directory</span>
-              <ChevronRight className="w-3 h-3 text-terracotta group-hover:translate-x-0.5 transition-transform" />
-            </div>
-          </div>
-        </Card>
 
-        {/* KPI 2: Upcoming Events */}
-        <Card
-          hover
-          onClick={() => navigate('/events')}
-          className="p-5 cursor-pointer group hover:border-sage/50"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-charcoal-400">
-              Upcoming Events
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-sage-light text-sage flex items-center justify-center group-hover:bg-sage group-hover:text-white transition-colors">
-              <CalendarDays className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-3xl font-bold text-charcoal tracking-tight">
-              {metrics.upcomingEventsCount}
-            </div>
-            <div className="text-xs text-charcoal-500 mt-1 flex items-center gap-1">
-              <span>Confirmed & active shoots</span>
-              <ChevronRight className="w-3 h-3 text-sage group-hover:translate-x-0.5 transition-transform" />
-            </div>
-          </div>
-        </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+            {/* 1A: Revision Requests from Clients */}
+            {revisionDeliverables.map((deliv) => {
+              const project = projects.find((p) => p.id === deliv.projectId);
+              const client = project ? clients.find((c) => c.id === project.clientId) : null;
+              return (
+                <div
+                  key={deliv.id}
+                  className="p-4 rounded-xl border border-rose-border bg-rose-light/40 flex flex-col justify-between gap-3 shadow-subtle hover:border-rose transition-colors"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-rose">
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Client Revision Requested
+                      </span>
+                      <Badge variant="rose" size="sm">
+                        {deliv.rejectedPhotos || 1} Photo(s) Flagged
+                      </Badge>
+                    </div>
 
-        {/* KPI 3: Active Projects */}
-        <Card
-          hover
+                    <h3 className="text-sm font-semibold text-charcoal line-clamp-1 mt-1">
+                      {deliv.title}
+                    </h3>
+                    <p className="text-xs text-charcoal-600 line-clamp-2">
+                      {client?.name ? `Client: ${client.name}` : deliv.description || 'Client has requested edits on photo spreads.'}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-rose-border/60 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-charcoal-500">
+                      Target: {formatDate(deliv.deadline)}
+                    </span>
+                    <Button
+                      size="xs"
+                      variant="destructive"
+                      onClick={() => navigate('/deliverables')}
+                      rightIcon={<ChevronRight className="w-3 h-3" />}
+                    >
+                      Review Edits
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* 1B: Overdue Tasks */}
+            {overdueTasks.slice(0, 2).map((t) => {
+              const project = projects.find((p) => p.id === t.projectId);
+              const assigned = team.find((tm) => tm.id === t.assignedTo);
+              return (
+                <div
+                  key={t.id}
+                  className="p-4 rounded-xl border border-rose-border bg-rose-light/30 flex flex-col justify-between gap-3 shadow-subtle"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-rose">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        Task Overdue
+                      </span>
+                      <span className="text-[11px] font-semibold text-rose">
+                        Due {formatDate(t.dueDate)}
+                      </span>
+                    </div>
+
+                    <h3 className="text-sm font-semibold text-charcoal line-clamp-1">
+                      {t.title}
+                    </h3>
+                    <p className="text-xs text-charcoal-500 line-clamp-1">
+                      {project ? `Workspace: ${project.title}` : 'General Studio Operation'}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-rose-border/60 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-xs text-charcoal-600">
+                      {assigned && (
+                        <>
+                          <Avatar name={assigned.name} src={assigned.avatar} size="xs" />
+                          <span className="text-[11px] truncate max-w-[100px]">{assigned.name}</span>
+                        </>
+                      )}
+                    </div>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => {
+                        toggleTaskComplete(t.id);
+                      }}
+                      className="text-sage-dark border-sage-border hover:bg-sage-light"
+                      leftIcon={<CheckCircle2 className="w-3 h-3" />}
+                    >
+                      Done
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* 1C: Tasks Due Today */}
+            {dueTodayTasks.slice(0, 1).map((t) => {
+              const project = projects.find((p) => p.id === t.projectId);
+              return (
+                <div
+                  key={t.id}
+                  className="p-4 rounded-xl border border-amber-border bg-amber-light/40 flex flex-col justify-between gap-3 shadow-subtle"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-amber-dark">
+                        <Clock className="w-3.5 h-3.5" />
+                        Due Today
+                      </span>
+                      <PriorityBadge priority={t.priority || 'Medium'} />
+                    </div>
+
+                    <h3 className="text-sm font-semibold text-charcoal line-clamp-1">
+                      {t.title}
+                    </h3>
+                    <p className="text-xs text-charcoal-500 line-clamp-1">
+                      {project?.title || 'Production milestone due by end of day.'}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-amber-border/60 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-amber-dark font-medium">Due by 6:00 PM</span>
+                    <Button
+                      size="xs"
+                      variant="secondary"
+                      onClick={() => toggleTaskComplete(t.id)}
+                      leftIcon={<CheckCircle2 className="w-3 h-3 text-sage" />}
+                    >
+                      Mark Done
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ========================================================= */}
+      {/* SECTION 2: STREAMLINED OPERATIONS KPI SUMMARY TILES       */}
+      {/* ========================================================= */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <MetricCard
+          title="Active Projects"
+          value={activeProjects.length}
+          subtitle="Workspaces in production"
+          icon={FolderKanban}
+          variant="amber"
           onClick={() => navigate('/projects')}
-          className="p-5 cursor-pointer group hover:border-amber/50"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-charcoal-400">
-              Active Projects
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-amber-light text-amber flex items-center justify-center group-hover:bg-amber group-hover:text-white transition-colors">
-              <FolderKanban className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-3xl font-bold text-charcoal tracking-tight">
-              {metrics.activeProjectsCount}
-            </div>
-            <div className="text-xs text-charcoal-500 mt-1 flex items-center gap-1">
-              <span>In digital darkroom & culling</span>
-              <ChevronRight className="w-3 h-3 text-amber group-hover:translate-x-0.5 transition-transform" />
-            </div>
-          </div>
-        </Card>
-
-        {/* KPI 4: Outstanding Payments */}
-        <Card
-          hover
-          onClick={() => navigate('/payments')}
-          className="p-5 cursor-pointer group hover:border-rose/50"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-charcoal-400">
-              Outstanding Payments
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-rose-light text-rose flex items-center justify-center group-hover:bg-rose group-hover:text-white transition-colors">
-              <IndianRupee className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-3xl font-bold text-charcoal tracking-tight">
-              {formatCurrency(metrics.totalOutstanding)}
-            </div>
-            <div className="text-xs text-charcoal-500 mt-1 flex items-center gap-1">
-              <span className="text-sage font-medium">{formatCurrency(metrics.totalRevenue)} paid</span>
-              <span>• view invoices</span>
-            </div>
-          </div>
-        </Card>
+        />
+        <MetricCard
+          title="Upcoming Shoots"
+          value={upcomingEvents.length}
+          subtitle="Confirmed on schedule"
+          icon={CalendarDays}
+          variant="sage"
+          onClick={() => navigate('/events')}
+        />
+        <MetricCard
+          title="Proofs in Pipeline"
+          value={deliverables.length}
+          subtitle={`${pendingDeliverables.length} in client review`}
+          icon={Eye}
+          variant="terracotta"
+          onClick={() => navigate('/deliverables')}
+        />
+        <MetricCard
+          title="Tasks Outstanding"
+          value={pendingTasks.length}
+          subtitle={overdueTasks.length > 0 ? `${overdueTasks.length} overdue` : 'All tasks on track'}
+          icon={CheckSquare}
+          variant={overdueTasks.length > 0 ? 'rose' : 'default'}
+          onClick={() => navigate('/tasks')}
+        />
       </div>
 
-      {/* Main Grid: Upcoming Schedule & Task Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column (2 cols): Upcoming Schedule */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-charcoal">Upcoming Schedule</h2>
-              <p className="text-xs text-charcoal-500 mt-0.5">
-                Confirmed shoots, venue itineraries, and booking milestones
-              </p>
-            </div>
-            <Link
-              to="/events"
-              className="text-xs font-medium text-terracotta hover:text-terracotta-hover flex items-center gap-1"
-            >
-              <span>View all bookings</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <div className="space-y-3.5">
-            {upcomingEvents.length === 0 ? (
-              <Card className="p-8 text-center text-xs text-charcoal-500">
-                No upcoming events scheduled. Click "Create Event" to book a shoot.
-              </Card>
-            ) : (
-              upcomingEvents.map((evt) => {
-                const client = clients.find((c) => c.id === evt.clientId);
-                const leadPhotographer = team.find((tm) => tm.id === evt.leadPhotographerId);
-                const fin = getEventFinancials(evt.id);
-
-                return (
-                  <Card
-                    key={evt.id}
-                    hover
-                    onClick={() => navigate(`/events/${evt.id}`)}
-                    className="p-3.5 sm:p-5 cursor-pointer"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="space-y-1.5 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="terracotta" size="sm">{evt.eventType}</Badge>
-                          <Badge size="sm">{evt.status}</Badge>
-                          <Badge
-                            size="sm"
-                            variant={fin.paymentStatus === 'Paid' ? 'sage' : fin.paymentStatus === 'Partially Paid' ? 'amber' : 'default'}
-                          >
-                            {fin.paymentStatus}
-                          </Badge>
-                        </div>
-
-                        <h3 className="text-base font-semibold text-charcoal group-hover:text-terracotta transition-colors truncate">
-                          {evt.title}
-                        </h3>
-
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-charcoal-500">
-                          <span className="font-medium text-charcoal-700">Client: {client?.name || 'Unassigned'}</span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-charcoal-400" />
-                            {formatDate(evt.startDate)} {evt.startTime && `at ${evt.startTime}`}
-                          </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1 truncate max-w-full sm:max-w-xs">
-                            <MapPin className="w-3.5 h-3.5 text-charcoal-400 flex-shrink-0" />
-                            <span className="truncate">{evt.venue}</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="text-right sm:self-center flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
-                        <span className="text-[10px] text-charcoal-400 uppercase font-medium block">Package</span>
-                        <span className="text-base font-bold text-charcoal block">{formatCurrency(evt.packageValue)}</span>
-                        {leadPhotographer && (
-                          <span className="text-[11px] text-terracotta block mt-0.5">Lead: {leadPhotographer.name}</span>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })
-            )}
-          </div>
-
-          {/* Active Projects Preview */}
-          <div className="pt-2 space-y-4">
-            <div className="flex items-center justify-between">
+      {/* ========================================================= */}
+      {/* SECTION 3: CORE OPERATIONS SPLIT GRID                      */}
+      {/* ========================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+        {/* Left Column (2 cols): Upcoming Schedule & Active Workspaces */}
+        <div className="lg:col-span-2 space-y-6 sm:space-y-8">
+          {/* 3A: Upcoming Schedule & Shoot Itineraries */}
+          <div>
+            <div className="flex items-center justify-between mb-3.5">
               <div>
-                <h3 className="text-base font-semibold text-charcoal">Projects in Production</h3>
-                <p className="text-xs text-charcoal-500 mt-0.5">Workspaces currently progressing through post-production</p>
+                <h2 className="text-base sm:text-lg font-bold text-charcoal tracking-tight">
+                  Upcoming Shoots & Event Itineraries
+                </h2>
+                <p className="text-xs text-charcoal-500 mt-0.5">
+                  Confirmed ceremonies, commercial campaigns, and darkroom booking dates
+                </p>
               </div>
-              <Link to="/projects" className="text-xs font-medium text-terracotta hover:text-terracotta-hover flex items-center gap-1">
-                <span>View all projects</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+              <Link
+                to="/events"
+                className="text-xs font-semibold text-terracotta hover:text-terracotta-hover flex items-center gap-1 group"
+              >
+                <span>All Bookings</span>
+                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </div>
+
+            <div className="space-y-3">
+              {upcomingEvents.length === 0 ? (
+                <EmptyState
+                  icon={CalendarDays}
+                  title="No Upcoming Events"
+                  description="Your shoot calendar is open. Book a new wedding, portrait, or commercial campaign."
+                  action={
+                    <Button size="sm" variant="outline" onClick={() => setIsEventModalOpen(true)}>
+                      Book First Shoot
+                    </Button>
+                  }
+                />
+              ) : (
+                upcomingEvents.map((evt) => {
+                  const client = clients.find((c) => c.id === evt.clientId);
+                  const leadPhotographer = team.find((tm) => tm.id === evt.leadPhotographerId);
+                  const fin = getEventFinancials ? getEventFinancials(evt.id) : null;
+
+                  return (
+                    <Card
+                      key={evt.id}
+                      hover
+                      onClick={() => navigate(`/events/${evt.id}`)}
+                      className="p-4 sm:p-5 cursor-pointer"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="terracotta" size="sm">
+                              {evt.eventType}
+                            </Badge>
+                            <Badge size="sm">{evt.status}</Badge>
+                            {fin && (
+                              <Badge
+                                size="sm"
+                                variant={
+                                  fin.paymentStatus === 'Paid'
+                                    ? 'sage'
+                                    : fin.paymentStatus === 'Partially Paid'
+                                    ? 'amber'
+                                    : 'default'
+                                }
+                              >
+                                {fin.paymentStatus}
+                              </Badge>
+                            )}
+                          </div>
+
+                          <h3 className="text-sm sm:text-base font-bold text-charcoal hover:text-terracotta transition-colors truncate">
+                            {evt.title}
+                          </h3>
+
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-charcoal-500">
+                            {client && (
+                              <span className="font-medium text-charcoal-700">
+                                Client:{' '}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/clients/${client.id}`);
+                                  }}
+                                  className="text-terracotta hover:underline font-semibold"
+                                >
+                                  {client.name}
+                                </button>
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5 text-charcoal-400" />
+                              {formatDate(evt.startDate)} {evt.startTime && `at ${evt.startTime}`}
+                            </span>
+                            {evt.venue && (
+                              <span className="flex items-center gap-1 truncate max-w-full sm:max-w-xs">
+                                <MapPin className="w-3.5 h-3.5 text-charcoal-400 shrink-0" />
+                                <span className="truncate">{evt.venue}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-left sm:text-right sm:self-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/60">
+                          <span className="text-[10px] text-charcoal-400 uppercase font-bold block">Agreed Package</span>
+                          <span className="text-sm sm:text-base font-bold text-charcoal block font-serif">
+                            {formatCurrency(evt.packageValue)}
+                          </span>
+                          {leadPhotographer && (
+                            <span className="text-[11px] text-terracotta font-medium block mt-0.5">
+                              Lead: {leadPhotographer.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* 3B: Active Project Workspaces in Production */}
+          <div>
+            <div className="flex items-center justify-between mb-3.5">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-charcoal tracking-tight">
+                  Workspaces in Digital Darkroom
+                </h2>
+                <p className="text-xs text-charcoal-500 mt-0.5">
+                  Post-production culling, color grading, retouches, and client album proofs
+                </p>
+              </div>
+              <Link
+                to="/projects"
+                className="text-xs font-semibold text-terracotta hover:text-terracotta-hover flex items-center gap-1 group"
+              >
+                <span>All Projects</span>
+                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {activeProjects.map((p) => {
-                const client = clients.find((c) => c.id === p.clientId);
                 return (
                   <Card
                     key={p.id}
@@ -328,23 +558,42 @@ export function DashboardPage() {
                     className="p-4 cursor-pointer flex flex-col justify-between"
                   >
                     <div>
-                      <div className="h-28 w-full rounded-lg overflow-hidden bg-ivory-200 mb-3 relative">
-                        <img src={p.coverImage} alt="" className="w-full h-full object-cover" />
-                        <div className="absolute top-1.5 right-1.5">
-                          <Badge size="sm" className="bg-surface/90 text-[10px]">{p.status}</Badge>
+                      <div className="h-32 w-full rounded-xl overflow-hidden bg-ivory-200 mb-3 relative">
+                        <img src={p.coverImage} alt={p.title} className="w-full h-full object-cover" />
+                        <div className="absolute top-2 right-2">
+                          <Badge size="sm" className="bg-surface/90 shadow-xs backdrop-blur-xs font-semibold">
+                            {p.status}
+                          </Badge>
                         </div>
+                        {p.hasRevisions && (
+                          <div className="absolute bottom-2 left-2">
+                            <span className="px-2 py-0.5 text-[10px] font-bold bg-rose text-white rounded-md shadow-xs flex items-center gap-1">
+                              <RotateCcw className="w-3 h-3" /> Revisions Needed
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <h4 className="text-sm font-semibold text-charcoal truncate">{p.title}</h4>
-                      <p className="text-xs text-charcoal-500 mt-0.5 truncate">{client?.name}</p>
+
+                      <h3 className="text-sm font-bold text-charcoal hover:text-terracotta transition-colors truncate">
+                        {p.title}
+                      </h3>
+                      <p className="text-xs text-charcoal-500 mt-0.5 truncate">{p.clientName}</p>
                     </div>
 
-                    <div className="mt-3 pt-2.5 border-t border-border/60">
-                      <div className="flex justify-between text-[11px] text-charcoal-500 mb-1">
-                        <span>Progress</span>
-                        <span className="font-semibold text-charcoal">{p.progressPercent}%</span>
+                    <div className="mt-3.5 pt-3 border-t border-border/70 space-y-1.5">
+                      <div className="flex justify-between items-center text-xs text-charcoal-500">
+                        <span>Workflow Progress</span>
+                        <span className="font-bold text-charcoal">{p.progress}%</span>
                       </div>
-                      <div className="w-full h-1 bg-ivory-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-terracotta" style={{ width: `${p.progressPercent}%` }} />
+                      <div className="w-full h-1.5 bg-ivory-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-terracotta transition-all duration-300"
+                          style={{ width: `${p.progress}%` }}
+                        />
+                      </div>
+                      <div className="text-[11px] text-charcoal-400 pt-1 flex items-center justify-between">
+                        <span>Deadline: {formatDate(p.deliveryDeadline)}</span>
+                        <span className="text-terracotta font-medium group-hover:underline">Open &rarr;</span>
                       </div>
                     </div>
                   </Card>
@@ -352,18 +601,92 @@ export function DashboardPage() {
               })}
             </div>
           </div>
-        </div>
 
-        {/* Right Column (1 col): Task Overview & Recent Activity */}
-        <div className="space-y-6">
-          {/* Task Overview */}
+          {/* 3C: Deliverable & Album Proofing Pipeline */}
           <div>
             <div className="flex items-center justify-between mb-3.5">
               <div>
-                <h3 className="text-base font-semibold text-charcoal">Task Overview</h3>
-                <p className="text-xs text-charcoal-500">Categorized by urgency</p>
+                <h2 className="text-base sm:text-lg font-bold text-charcoal tracking-tight">
+                  Album Proofs & Deliverables Pipeline
+                </h2>
+                <p className="text-xs text-charcoal-500 mt-0.5">
+                  Review cycles, pending approvals, and completed handovers
+                </p>
               </div>
-              <Link to="/tasks" className="text-xs font-medium text-terracotta hover:text-terracotta-hover">
+              <Link
+                to="/deliverables"
+                className="text-xs font-semibold text-terracotta hover:text-terracotta-hover flex items-center gap-1 group"
+              >
+                <span>All Deliverables</span>
+                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </div>
+
+            <Card className="divide-y divide-border/60 overflow-hidden">
+              {deliverables.length === 0 ? (
+                <div className="p-6 text-center text-xs text-charcoal-500">
+                  No deliverables in production pipeline.
+                </div>
+              ) : (
+                deliverables.slice(0, 3).map((d) => {
+                  const project = projects.find((p) => p.id === d.projectId);
+                  return (
+                    <div
+                      key={d.id}
+                      onClick={() => navigate('/deliverables')}
+                      className="p-4 hover:bg-ivory-50/70 transition-colors cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-charcoal hover:text-terracotta transition-colors truncate">
+                            {d.title}
+                          </span>
+                          <Badge
+                            size="sm"
+                            variant={
+                              d.clientApprovalStatus === 'Approved'
+                                ? 'sage'
+                                : d.clientApprovalStatus === 'Revisions Requested'
+                                ? 'rose'
+                                : 'amber'
+                            }
+                          >
+                            {d.clientApprovalStatus}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-charcoal-500 truncate">
+                          Workspace: {project?.title || 'Standalone Production'} &bull; {d.totalPhotos || 0} Photos
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0 self-start sm:self-auto">
+                        <span className="text-xs text-charcoal-500 font-medium">
+                          Due {formatDate(d.deadline)}
+                        </span>
+                        <Button size="xs" variant="outline" rightIcon={<ChevronRight className="w-3 h-3" />}>
+                          View Proofs
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </Card>
+          </div>
+        </div>
+
+        {/* Right Column (1 col): Operational Priorities & Studio Activity */}
+        <div className="space-y-6 sm:space-y-8">
+          {/* 3D: Daily Task Priorities */}
+          <div>
+            <div className="flex items-center justify-between mb-3.5">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-charcoal tracking-tight">
+                  Task Priorities
+                </h2>
+                <p className="text-xs text-charcoal-500">Click checkmark to resolve immediately</p>
+              </div>
+              <Link to="/tasks" className="text-xs font-semibold text-terracotta hover:text-terracotta-hover">
                 Task Board
               </Link>
             </div>
@@ -371,20 +694,39 @@ export function DashboardPage() {
             <Card className="divide-y divide-border/60">
               {/* Overdue tasks */}
               {overdueTasks.length > 0 && (
-                <div className="p-3.5 bg-rose-light/30">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-rose mb-2">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>Overdue ({overdueTasks.length})</span>
+                <div className="p-3.5 bg-rose-light/20">
+                  <div className="flex items-center justify-between text-xs font-bold text-rose mb-2.5">
+                    <span className="flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      Overdue ({overdueTasks.length})
+                    </span>
                   </div>
-                  <div className="space-y-2">
-                    {overdueTasks.slice(0, 2).map((t) => (
-                      <Link
-                        key={t.id}
-                        to="/tasks"
-                        className="block text-xs text-charcoal hover:text-rose transition-colors font-medium truncate"
-                      >
-                        • {t.title} <span className="text-charcoal-400 text-[10px]">({formatDate(t.dueDate)})</span>
-                      </Link>
+                  <div className="space-y-2.5">
+                    {overdueTasks.slice(0, 3).map((t) => (
+                      <div key={t.id} className="flex items-start gap-2 text-xs group">
+                        <button
+                          type="button"
+                          onClick={() => toggleTaskComplete(t.id)}
+                          className="mt-0.5 text-rose hover:text-sage transition-colors shrink-0"
+                          title="Mark complete"
+                          aria-label={`Mark task ${t.title} complete`}
+                        >
+                          <div className="w-4 h-4 rounded border border-rose flex items-center justify-center hover:bg-sage-light hover:border-sage">
+                            <CheckCircle2 className="w-3 h-3 opacity-0 group-hover:opacity-100" />
+                          </div>
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            to="/tasks"
+                            className="text-xs text-charcoal hover:text-rose transition-colors font-medium block truncate"
+                          >
+                            {t.title}
+                          </Link>
+                          <span className="text-[10px] text-rose font-medium block">
+                            Past due: {formatDate(t.dueDate)}
+                          </span>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -392,68 +734,111 @@ export function DashboardPage() {
 
               {/* Tasks due today */}
               {dueTodayTasks.length > 0 && (
-                <div className="p-3.5 bg-amber-light/30">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-dark mb-2">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>Due Today ({dueTodayTasks.length})</span>
+                <div className="p-3.5 bg-amber-light/25">
+                  <div className="flex items-center justify-between text-xs font-bold text-amber-dark mb-2.5">
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" />
+                      Due Today ({dueTodayTasks.length})
+                    </span>
                   </div>
                   <div className="space-y-2">
-                    {dueTodayTasks.slice(0, 2).map((t) => (
-                      <Link
-                        key={t.id}
-                        to="/tasks"
-                        className="block text-xs text-charcoal hover:text-amber-dark transition-colors font-medium truncate"
-                      >
-                        • {t.title}
-                      </Link>
+                    {dueTodayTasks.map((t) => (
+                      <div key={t.id} className="flex items-start gap-2 text-xs group">
+                        <button
+                          type="button"
+                          onClick={() => toggleTaskComplete(t.id)}
+                          className="mt-0.5 text-amber-dark hover:text-sage transition-colors shrink-0"
+                          title="Mark complete"
+                          aria-label={`Mark task ${t.title} complete`}
+                        >
+                          <div className="w-4 h-4 rounded border border-amber-border flex items-center justify-center hover:bg-sage-light hover:border-sage">
+                            <CheckCircle2 className="w-3 h-3 opacity-0 group-hover:opacity-100" />
+                          </div>
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            to="/tasks"
+                            className="text-xs text-charcoal hover:text-amber-dark transition-colors font-medium block truncate"
+                          >
+                            {t.title}
+                          </Link>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Upcoming tasks */}
+              {/* Upcoming priority tasks */}
               <div className="p-3.5 space-y-2.5">
-                <div className="text-xs font-semibold text-charcoal-600 mb-1">
-                  Upcoming Priority Tasks
+                <div className="text-xs font-bold text-charcoal-600 uppercase tracking-wider mb-2">
+                  Upcoming High Priority
                 </div>
-                {futureTasks.slice(0, 3).map((t) => {
-                  const assigned = team.find((tm) => tm.id === t.assignedTo);
-                  return (
-                    <div key={t.id} className="flex items-center justify-between gap-2 text-xs">
-                      <Link to="/tasks" className="text-charcoal hover:text-terracotta truncate font-medium">
-                        {t.title}
-                      </Link>
-                      <span className="text-[10px] text-charcoal-400 flex-shrink-0">
-                        {formatDate(t.dueDate)}
-                      </span>
-                    </div>
-                  );
-                })}
+                {upcomingHighPriorityTasks.length === 0 ? (
+                  <p className="text-xs text-charcoal-400 italic">No upcoming high priority tasks.</p>
+                ) : (
+                  upcomingHighPriorityTasks.map((t) => {
+                    const assigned = team.find((tm) => tm.id === t.assignedTo);
+                    return (
+                      <div key={t.id} className="flex items-center justify-between gap-2 text-xs py-1">
+                        <div className="min-w-0 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleTaskComplete(t.id)}
+                            className="text-charcoal-400 hover:text-sage transition-colors shrink-0"
+                            title="Mark complete"
+                            aria-label={`Mark task ${t.title} complete`}
+                          >
+                            <div className="w-3.5 h-3.5 rounded border border-charcoal-300 hover:border-sage" />
+                          </button>
+                          <Link to="/tasks" className="text-charcoal hover:text-terracotta truncate font-medium">
+                            {t.title}
+                          </Link>
+                        </div>
+                        <span className="text-[10px] text-charcoal-400 shrink-0 font-medium">
+                          {formatDate(t.dueDate)}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </Card>
           </div>
 
-          {/* Recent Activity Log */}
+          {/* 3E: Recent Studio Activity Log */}
           <div>
             <div className="flex items-center justify-between mb-3.5">
-              <h3 className="text-base font-semibold text-charcoal">Recent Activity</h3>
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-charcoal tracking-tight">
+                  Recent Studio Activity
+                </h2>
+                <p className="text-xs text-charcoal-500">Audit trail of latest operations</p>
+              </div>
             </div>
 
             <Card className="p-4 divide-y divide-border/60">
-              {activityLog.slice(0, 5).map((act) => (
-                <div key={act.id} className="py-2.5 first:pt-0 last:pb-0">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-semibold text-charcoal truncate">{act.action}</span>
-                    <span className="text-[10px] text-charcoal-400 flex-shrink-0">
-                      {formatRelativeTime(act.timestamp)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-charcoal-600 mt-0.5 leading-snug">{act.details}</p>
-                  <div className="text-[10px] text-terracotta font-medium mt-1">
-                    {act.userName}
-                  </div>
+              {activityLog.length === 0 ? (
+                <div className="p-6 text-center text-xs text-charcoal-400">
+                  No recent activity logged.
                 </div>
-              ))}
+              ) : (
+                activityLog.slice(0, 6).map((act) => (
+                  <div key={act.id} className="py-2.5 first:pt-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-semibold text-charcoal truncate">{act.action}</span>
+                      <span className="text-[10px] text-charcoal-400 shrink-0 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatRelativeTime(act.timestamp)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-charcoal-600 mt-0.5 leading-snug">{act.details}</p>
+                    <div className="text-[10px] text-terracotta font-medium mt-1">
+                      By {act.userName}
+                    </div>
+                  </div>
+                ))
+              )}
             </Card>
           </div>
         </div>

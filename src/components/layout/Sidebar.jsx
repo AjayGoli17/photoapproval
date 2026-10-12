@@ -66,10 +66,12 @@ export function Sidebar({
 
   const renderNavGroup = (title, items) => (
     <div className="py-2">
-      {!isCollapsed && (
+      {!isCollapsed ? (
         <div className="px-4 mb-2 text-[11px] font-bold uppercase tracking-wider text-charcoal-400">
           {title}
         </div>
+      ) : (
+        <div className="w-8 mx-auto my-1 border-t border-border/60" />
       )}
       <ul className="space-y-1 px-2.5">
         {items.map((item) => {
@@ -77,18 +79,21 @@ export function Sidebar({
           // check if path matches current route or sub-route
           const isActive =
             location.pathname === item.path ||
-            (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
+            (item.path !== '/dashboard' && location.pathname.startsWith(item.path)) ||
+            (item.path === '/payments' && location.pathname.startsWith('/invoices'));
 
           return (
             <li key={item.path}>
               <NavLink
                 to={item.path}
                 onClick={onCloseMobile}
-                title={isCollapsed ? item.name : undefined}
+                title={item.name}
+                aria-label={item.name}
                 className={({ isActive: navActive }) => {
                   const active = isActive || navActive;
                   return cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative',
+                    'flex items-center rounded-xl text-sm font-medium transition-all group relative min-h-[42px]',
+                    isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
                     active
                       ? 'bg-terracotta text-white shadow-sm'
                       : 'text-charcoal-700 hover:text-charcoal hover:bg-ivory-200/90'
@@ -104,13 +109,17 @@ export function Sidebar({
                           'w-4 h-4 flex-shrink-0 transition-colors',
                           active ? 'text-white' : 'text-charcoal-500 group-hover:text-charcoal'
                         )}
+                        aria-hidden="true"
                       />
                       {!isCollapsed && (
                         <span className="truncate flex-1">{item.name}</span>
                       )}
-                      {/* Sub-indicator if collapsed */}
+                      {/* Visual indicator if collapsed */}
                       {isCollapsed && active && (
-                        <span className="absolute left-0 top-2 bottom-2 w-1 bg-terracotta rounded-r-full" />
+                        <span
+                          className="absolute left-1 top-2 bottom-2 w-1 bg-white/70 rounded-full"
+                          aria-hidden="true"
+                        />
                       )}
                     </>
                   );
@@ -126,10 +135,15 @@ export function Sidebar({
   const sidebarContent = (
     <div className="flex flex-col h-full bg-surface border-r border-border select-none">
       {/* Studio Brand Header */}
-      <div className="p-4 border-b border-border flex items-center justify-between min-h-[64px]">
-        <div className="flex items-center gap-3 min-w-0">
+      <div
+        className={cn(
+          'p-4 border-b border-border flex items-center min-h-[64px]',
+          isCollapsed ? 'justify-center' : 'justify-between'
+        )}
+      >
+        <div className={cn('flex items-center min-w-0', isCollapsed ? 'justify-center' : 'gap-3')}>
           <div className="w-9 h-9 rounded-xl bg-terracotta flex items-center justify-center text-white shadow-sm flex-shrink-0">
-            <Camera className="w-5 h-5 stroke-[2]" />
+            <Camera className="w-5 h-5 stroke-[2]" aria-hidden="true" />
           </div>
           {!isCollapsed && (
             <div className="min-w-0 truncate">
@@ -146,17 +160,17 @@ export function Sidebar({
         {/* Mobile close button */}
         <button
           onClick={onCloseMobile}
-          className="md:hidden p-1.5 rounded-lg text-charcoal-400 hover:text-charcoal hover:bg-ivory-200"
-          aria-label="Close sidebar"
+          className="md:hidden p-2 rounded-xl text-charcoal-400 hover:text-charcoal hover:bg-ivory-200 min-w-[40px] min-h-[40px] flex items-center justify-center transition-colors"
+          aria-label="Close sidebar navigation"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* Nav groups */}
-      <div className="flex-1 overflow-y-auto py-3 space-y-3">
+      <div className="flex-1 overflow-y-auto py-3 space-y-2 custom-scrollbar">
         {renderNavGroup('Workspace', WORKSPACE_NAV)}
-        <div className="mx-4 border-t border-border/70" />
+        <div className="mx-4 border-t border-border/70 my-1" />
         {renderNavGroup('Studio Operations', OPERATIONS_NAV)}
       </div>
 
@@ -164,14 +178,14 @@ export function Sidebar({
       <div className="p-3 border-t border-border hidden md:flex items-center justify-between">
         {!isCollapsed && (
           <div className="px-2 text-xs text-charcoal-400 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-sage inline-block" />
+            <span className="w-2 h-2 rounded-full bg-sage inline-block animate-pulse" />
             <span>Interactive Demo</span>
           </div>
         )}
         <button
           onClick={onToggleCollapse}
           className={cn(
-            'p-2 rounded-lg text-charcoal-500 hover:text-charcoal hover:bg-ivory-200 transition-colors',
+            'p-2 rounded-lg text-charcoal-500 hover:text-charcoal hover:bg-ivory-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/40',
             isCollapsed && 'w-full flex justify-center'
           )}
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}

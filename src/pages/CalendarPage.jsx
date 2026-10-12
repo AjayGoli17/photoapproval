@@ -71,7 +71,7 @@ export function CalendarPage() {
           type: 'event',
           typeLabel: 'Shoot Event',
           title: ev.title,
-          dateStr: ev.startDate.split('T')[0],
+          dateStr: ev.startDate ? ev.startDate.split('T')[0] : '',
           time: ev.startTime || '10:00 AM',
           venue: ev.venue || 'On Location',
           clientName: client?.name || 'Client',

@@ -13,11 +13,12 @@ import {
   Calendar,
   AlertTriangle,
   ExternalLink,
+  DollarSign,
 } from 'lucide-react';
 import { useStudioData } from '../context/StudioDataContext';
 import { useToast } from '../context/ToastContext';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Card } from '../components/common/Card';
+import { Card, MetricCard } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { Avatar } from '../components/common/Avatar';
@@ -55,6 +56,20 @@ export function ClientsPage() {
   ];
 
   const statuses = ['All', 'Active', 'Lead', 'Completed'];
+
+  // Summary statistics
+  const activeClientsCount = clients.filter((c) =>
+    events.some((e) => e.clientId === c.id && e.status !== 'Completed' && e.status !== 'Cancelled')
+  ).length;
+
+  const totalOutstanding = clients.reduce((sum, c) => {
+    const fin = getClientFinancials(c.id);
+    return sum + (fin?.outstandingBalance || 0);
+  }, 0);
+
+  const weddingCount = clients.filter(
+    (c) => c.category === 'Wedding Couple' || c.category === 'Pre-Wedding'
+  ).length;
 
   // Filter logic
   const filteredClients = clients.filter((c) => {
@@ -142,6 +157,34 @@ export function ClientsPage() {
         }
       />
 
+      {/* Summary KPI Tiles */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard
+          label="Total Profiles"
+          value={clients.length}
+          subtitle="Directory contacts"
+          icon={Users}
+        />
+        <MetricCard
+          label="Active Engagements"
+          value={activeClientsCount}
+          subtitle="Clients with live shoots"
+          icon={Calendar}
+        />
+        <MetricCard
+          label="Weddings & Pre-Wed"
+          value={weddingCount}
+          subtitle="Couple portfolios"
+          icon={Calendar}
+        />
+        <MetricCard
+          label="Outstanding Balance"
+          value={formatCurrency(totalOutstanding)}
+          subtitle={totalOutstanding === 0 ? 'All accounts settled' : 'Unpaid invoices'}
+          icon={DollarSign}
+        />
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
         <SearchInput
@@ -209,9 +252,9 @@ export function ClientsPage() {
         />
       ) : (
         <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left text-sm border-collapse min-w-[700px]">
-              <thead className="bg-ivory-50 border-b border-border text-xs uppercase tracking-wider text-charcoal-500 font-semibold">
+              <thead className="bg-ivory-50 border-b border-border text-xs uppercase tracking-wider text-charcoal-500 font-semibold select-none">
                 <tr>
                   <th className="p-4">Client</th>
                   <th className="p-4">Contact</th>
@@ -236,7 +279,15 @@ export function ClientsPage() {
                     <tr
                       key={client.id}
                       onClick={() => navigate(`/clients/${client.id}`)}
-                      className="hover:bg-ivory-50/70 transition-colors cursor-pointer group"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigate(`/clients/${client.id}`);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      className="hover:bg-ivory-50/70 transition-colors cursor-pointer group focus:outline-none focus-visible:bg-ivory-100 focus-visible:ring-1 focus-visible:ring-terracotta/40"
                     >
                       {/* Client Name & Category */}
                       <td className="p-4">
@@ -258,12 +309,24 @@ export function ClientsPage() {
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5 font-medium text-charcoal">
                             <Phone className="w-3.5 h-3.5 text-charcoal-400" />
-                            <span>{client.phone}</span>
+                            <a
+                              href={`tel:${client.phone}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="hover:text-terracotta hover:underline transition-colors"
+                            >
+                              {client.phone}
+                            </a>
                           </div>
                           {client.email && (
                             <div className="flex items-center gap-1.5 text-charcoal-400 truncate max-w-[180px]">
                               <Mail className="w-3.5 h-3.5 text-charcoal-400 flex-shrink-0" />
-                              <span className="truncate">{client.email}</span>
+                              <a
+                                href={`mailto:${client.email}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="truncate hover:text-terracotta hover:underline transition-colors"
+                              >
+                                {client.email}
+                              </a>
                             </div>
                           )}
                         </div>

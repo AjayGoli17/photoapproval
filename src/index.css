@@ -14,6 +14,14 @@
     background-color: #F7F5F0;
     color: #292925;
     font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Consistent accessible focus ring */
+  :focus-visible {
+    outline: 2px solid #B96F52;
+    outline-offset: 2px;
   }
 
   /* Custom scrollbar for warm aesthetic */
@@ -37,6 +45,16 @@
   .editorial-heading {
     font-family: 'Newsreader', Georgia, serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Thin horizontal scroll styling for mobile-friendly tables and tabs */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #E3DFD5;
+    border-radius: 9999px;
   }
 }
 

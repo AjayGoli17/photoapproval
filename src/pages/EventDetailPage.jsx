@@ -45,6 +45,8 @@ export function EventDetailPage() {
     getEventFinancials,
     deleteEvent,
     createProjectForEvent,
+    getTasksByProject,
+    toggleTaskComplete,
     activityLog,
   } = useStudioData();
 
@@ -52,6 +54,7 @@ export function EventDetailPage() {
   const client = event ? getClient(event.clientId) : null;
   const leadPhotographer = event ? getTeamMember(event.leadPhotographerId) : null;
   const linkedProject = event ? projects.find((p) => p.eventId === event.id) : null;
+  const eventTasks = linkedProject ? getTasksByProject(linkedProject.id) : [];
   const financials = id ? getEventFinancials(id) : null;
 
   // Modals state
@@ -104,6 +107,25 @@ export function EventDetailPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <Breadcrumbs items={[{ label: 'Events', to: '/events' }, { label: event.title }]} />
         <div className="flex items-center gap-2 flex-wrap">
+          {linkedProject ? (
+            <Button
+              size="sm"
+              variant="primary"
+              leftIcon={<FolderKanban className="w-4 h-4" />}
+              onClick={() => navigate(`/projects/${linkedProject.id}`)}
+            >
+              Open Workspace
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="primary"
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={handleCreateWorkspace}
+            >
+              Create Workspace
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
@@ -123,6 +145,7 @@ export function EventDetailPage() {
           <Button
             size="sm"
             variant="destructive"
+            className="bg-rose/10 hover:bg-rose/20 text-rose border border-rose/20"
             leftIcon={<Trash2 className="w-4 h-4" />}
             onClick={() => setIsDeleteConfirmOpen(true)}
           >
@@ -249,9 +272,23 @@ export function EventDetailPage() {
               </div>
 
               <div className="space-y-1.5 text-xs text-charcoal-600 pt-2 border-t border-border/60">
-                <div>Phone: <span className="font-medium text-charcoal">{client.phone}</span></div>
-                {client.email && <div>Email: <span className="font-medium text-charcoal">{client.email}</span></div>}
-                {client.location && <div>Base: <span>{client.location}</span></div>}
+                {client.phone && (
+                  <div>
+                    Phone:{' '}
+                    <a href={`tel:${client.phone}`} className="font-medium text-charcoal hover:text-terracotta hover:underline">
+                      {client.phone}
+                    </a>
+                  </div>
+                )}
+                {client.email && (
+                  <div>
+                    Email:{' '}
+                    <a href={`mailto:${client.email}`} className="font-medium text-charcoal hover:text-terracotta hover:underline truncate">
+                      {client.email}
+                    </a>
+                  </div>
+                )}
+                {client.location && <div>Base: <span className="font-medium text-charcoal">{client.location}</span></div>}
               </div>
             </div>
           ) : (
@@ -325,6 +362,38 @@ export function EventDetailPage() {
                     <div className="h-full bg-terracotta" style={{ width: `${linkedProject.progressPercent}%` }} />
                   </div>
                 </div>
+
+                {/* Event Workspace Preparation Tasks */}
+                {eventTasks.length > 0 && (
+                  <div className="pt-3 border-t border-border/60">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-charcoal-400 block mb-2">
+                      Preparation Tasks ({eventTasks.filter((t) => t.status === 'Done' || t.status === 'Completed').length}/{eventTasks.length})
+                    </span>
+                    <div className="space-y-1.5">
+                      {eventTasks.slice(0, 3).map((task) => {
+                        const isDone = task.status === 'Done' || task.status === 'Completed';
+                        return (
+                          <div key={task.id} className="flex items-center gap-2 text-xs bg-surface p-2 rounded-lg border border-border">
+                            <button
+                              type="button"
+                              onClick={() => toggleTaskComplete(task.id)}
+                              className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                                isDone ? 'bg-sage border-sage text-white' : 'border-border hover:border-terracotta bg-surface'
+                              }`}
+                              title={isDone ? 'Mark incomplete' : 'Mark done'}
+                            >
+                              {isDone && <CheckCircle2 className="w-3 h-3" />}
+                            </button>
+                            <span className={`truncate flex-1 ${isDone ? 'line-through text-charcoal-400' : 'text-charcoal font-medium'}`}>
+                              {task.title}
+                            </span>
+                            <span className="text-[10px] text-charcoal-400 shrink-0">Due {formatDate(task.dueDate)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="py-2 text-xs text-charcoal-500">

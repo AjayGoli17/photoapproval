@@ -9,6 +9,21 @@ export function StudioDataProvider({ children }) {
 
   useEffect(() => {
     setIsInitialized(true);
+
+    // Cross-tab synchronization via localStorage storage event
+    const handleStorageChange = (e) => {
+      if (e.key === 'studioflow_demo_data_v2' && e.newValue) {
+        try {
+          const freshData = JSON.parse(e.newValue);
+          setData(freshData);
+        } catch (err) {
+          console.error('Failed to sync StudioFlow storage across tabs:', err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   // Sync to localStorage on changes
@@ -119,6 +134,8 @@ export function StudioDataProvider({ children }) {
     persistChanges((prev) => ({
       ...prev,
       clients: prev.clients.filter((c) => c.id !== id),
+      projects: prev.projects.map((p) => (p.clientId === id ? { ...p, clientId: null } : p)),
+      payments: prev.payments.map((pay) => (pay.clientId === id ? { ...pay, clientId: null } : pay)),
     }));
     if (client) {
       logActivity('Studio Director', 'Client Deleted', 'Client', client.name, `Removed client record for ${client.name}`, id);
@@ -396,6 +413,13 @@ export function StudioDataProvider({ children }) {
   // TASK MUTATIONS
   // ==========================================
   const addTask = useCallback((taskData) => {
+    const trimmedTitle = (taskData.title || '').trim();
+    if (!trimmedTitle) {
+      throw new Error('Task title is required');
+    }
+    if (!taskData.dueDate) {
+      throw new Error('Task due date is required');
+    }
     if (taskData.startDate && taskData.dueDate && taskData.dueDate < taskData.startDate) {
       throw new Error('Due date cannot precede the task start date');
     }
@@ -404,13 +428,13 @@ export function StudioDataProvider({ children }) {
     const newTask = {
       ...taskData,
       id,
-      title: (taskData.title || '').trim(),
+      title: trimmedTitle,
       description: (taskData.description || '').trim(),
       projectId: taskData.projectId || null,
       assignedTo: taskData.assignedTo || null,
       category: taskData.category || 'General',
       startDate: taskData.startDate || null,
-      dueDate: taskData.dueDate || new Date().toISOString().split('T')[0],
+      dueDate: taskData.dueDate,
       priority: taskData.priority || 'Medium',
       status: taskData.status || 'Pending',
       createdAt: new Date().toISOString(),
@@ -427,6 +451,9 @@ export function StudioDataProvider({ children }) {
   }, [persistChanges, logActivity]);
 
   const updateTask = useCallback((id, updates) => {
+    if (updates.title !== undefined && !updates.title.trim()) {
+      throw new Error('Task title cannot be empty');
+    }
     if (updates.startDate && updates.dueDate && updates.dueDate < updates.startDate) {
       throw new Error('Due date cannot precede the task start date');
     }
@@ -643,6 +670,11 @@ export function StudioDataProvider({ children }) {
     persistChanges((prev) => ({
       ...prev,
       team: prev.team.filter((m) => m.id !== id),
+      events: prev.events.map((e) => ({
+        ...e,
+        leadPhotographerId: e.leadPhotographerId === id ? null : e.leadPhotographerId,
+        teamAssigned: Array.isArray(e.teamAssigned) ? e.teamAssigned.filter((tid) => tid !== id) : [],
+      })),
     }));
 
     if (member) {
@@ -801,7 +833,7 @@ export function StudioDataProvider({ children }) {
     return deletedCount;
   }, [data.projects, data.deliverables, persistChanges, logActivity]);
 
-  const updateDeliverableItemStatus = useCallback((deliverableId, photoIds, status, feedbackNote = '') => {
+  const updateDeliverableItemStatus = useCallback((deliverableId, photoIds, status, feedbackNote = '', reviewerName = 'Client Reviewer') => {
     const ids = Array.isArray(photoIds) ? photoIds : [photoIds];
     let updatedDeliverable = null;
 
@@ -815,7 +847,9 @@ export function StudioDataProvider({ children }) {
               return {
                 ...item,
                 status,
-                feedback: status === 'Revision Requested' ? (feedbackNote || item.feedback || '') : (status === 'Approved' ? (item.feedback || '') : item.feedback),
+                feedback: status === 'Revision Requested'
+                  ? (feedbackNote || item.feedback || '')
+                  : (status === 'Approved' ? (item.feedback || '') : item.feedback),
                 reviewedAt: now,
                 approvedAt: status === 'Approved' ? now : null,
               };
@@ -828,14 +862,19 @@ export function StudioDataProvider({ children }) {
           const rejectedPhotos = newItems.filter((i) => i.status === 'Revision Requested').length;
           const pendingPhotos = newItems.filter((i) => i.status === 'Pending').length;
 
-          let clientApprovalStatus = 'Pending Review';
+          let clientApprovalStatus = d.clientApprovalStatus || 'In Review';
           if (totalPhotos > 0 && approvedPhotos === totalPhotos) {
-            clientApprovalStatus = 'Approved';
+            clientApprovalStatus = d.finalApproval ? 'Approved' : 'Ready for Final Sign-off';
           } else if (rejectedPhotos > 0) {
             clientApprovalStatus = 'Revisions Requested';
           } else if (approvedPhotos > 0) {
             clientApprovalStatus = 'Partially Approved';
+          } else {
+            clientApprovalStatus = 'In Review';
           }
+
+          // If any spread has revisions requested or resets to pending, prior finalApproval is invalidated
+          const finalApproval = (rejectedPhotos > 0 || pendingPhotos > 0) ? null : d.finalApproval;
 
           updatedDeliverable = {
             ...d,
@@ -845,6 +884,7 @@ export function StudioDataProvider({ children }) {
             rejectedPhotos,
             pendingPhotos,
             clientApprovalStatus,
+            finalApproval,
             lastUpdated: now,
           };
           return updatedDeliverable;
@@ -855,15 +895,221 @@ export function StudioDataProvider({ children }) {
 
     if (updatedDeliverable) {
       logActivity(
-        'Client Reviewer (Simulated)',
+        reviewerName,
         `Proof ${status}`,
         'Deliverable',
         updatedDeliverable.title,
-        `Marked ${ids.length} photo(s) as "${status}" in ${updatedDeliverable.title}`,
+        `Marked ${ids.length} spread/photo(s) as "${status}" in ${updatedDeliverable.title}`,
         deliverableId
       );
     }
     return updatedDeliverable;
+  }, [persistChanges, logActivity]);
+
+  const publishProofForReview = useCallback((deliverableId) => {
+    let updated = null;
+    const now = new Date().toISOString();
+    persistChanges((prev) => ({
+      ...prev,
+      deliverables: prev.deliverables.map((d) => {
+        if (d.id === deliverableId) {
+          const currentVer = d.proofVersion || d.version || 1;
+          const status = currentVer > 1 ? 'Revised Proof Awaiting Review' : 'In Review';
+          updated = {
+            ...d,
+            clientApprovalStatus: status,
+            deliveryStage: 'Client Review',
+            publishedForReviewAt: now,
+            lastUpdated: now,
+          };
+          return updated;
+        }
+        return d;
+      }),
+    }));
+    if (updated) {
+      logActivity('Studio Director', 'Proof Published for Review', 'Deliverable', updated.title, `Made "${updated.title}" available on client review portal.`, deliverableId);
+    }
+    return updated;
+  }, [persistChanges, logActivity]);
+
+  const submitSpreadReview = useCallback((deliverableId, itemId, status, feedbackNote = '', reviewerName = 'Client Reviewer') => {
+    return updateDeliverableItemStatus(deliverableId, [itemId], status, feedbackNote, reviewerName);
+  }, [updateDeliverableItemStatus]);
+
+  const submitFinalAlbumApproval = useCallback((deliverableId, signoffName = '', remarks = '') => {
+    const trimmedName = (signoffName || '').trim();
+    if (!trimmedName) {
+      throw new Error('Authorized client sign-off name is required for final album approval.');
+    }
+
+    let updated = null;
+    const now = new Date().toISOString();
+    persistChanges((prev) => ({
+      ...prev,
+      deliverables: prev.deliverables.map((d) => {
+        if (d.id === deliverableId) {
+          if (d.clientApprovalStatus === 'Approved') {
+            throw new Error('This album proof has already been granted final approval.');
+          }
+
+          const items = d.items || [];
+          const hasUnresolved = items.some((item) => item.status !== 'Approved');
+          if (hasUnresolved) {
+            throw new Error('Cannot grant final album approval: all spreads must be reviewed and approved first.');
+          }
+
+          updated = {
+            ...d,
+            clientApprovalStatus: 'Approved',
+            deliveryStage: 'Final Handover',
+            finalApproval: {
+              approvedBy: trimmedName,
+              approvedAt: now,
+              remarks: (remarks || '').trim(),
+            },
+            lastUpdated: now,
+          };
+          return updated;
+        }
+        return d;
+      }),
+    }));
+    if (updated) {
+      logActivity(
+        trimmedName,
+        'Final Album Approval Granted',
+        'Deliverable',
+        updated.title,
+        `Client ${trimmedName} granted final album approval for "${updated.title}". Signoff recorded.`,
+        deliverableId
+      );
+    }
+    return updated;
+  }, [persistChanges, logActivity]);
+
+  const resubmitRevisedProof = useCallback((deliverableId, studioNotes = '') => {
+    let updated = null;
+    const now = new Date().toISOString();
+    persistChanges((prev) => ({
+      ...prev,
+      deliverables: prev.deliverables.map((d) => {
+        if (d.id === deliverableId) {
+          const hasRevisionsRequested = (d.items || []).some((item) => item.status === 'Revision Requested');
+          if (!hasRevisionsRequested) {
+            throw new Error('No pending revision requests found on this proof to resubmit.');
+          }
+
+          const currentVer = d.proofVersion || d.version || 1;
+          const nextVersion = currentVer + 1;
+          const newItems = (d.items || []).map((item) => {
+            if (item.status === 'Revision Requested') {
+              const prevHistory = item.revisionHistory || [];
+              return {
+                ...item,
+                status: 'Pending',
+                feedback: '',
+                revisionHistory: [
+                  ...prevHistory,
+                  {
+                    version: currentVer,
+                    feedback: item.feedback,
+                    addressedAt: now,
+                    studioNotes: studioNotes.trim(),
+                  },
+                ],
+              };
+            }
+            return item;
+          });
+
+          const totalPhotos = newItems.length;
+          const approvedPhotos = newItems.filter((i) => i.status === 'Approved').length;
+          const rejectedPhotos = newItems.filter((i) => i.status === 'Revision Requested').length;
+          const pendingPhotos = newItems.filter((i) => i.status === 'Pending').length;
+
+          updated = {
+            ...d,
+            version: nextVersion,
+            proofVersion: nextVersion,
+            items: newItems,
+            totalPhotos,
+            approvedPhotos,
+            rejectedPhotos,
+            pendingPhotos,
+            clientApprovalStatus: 'Revised Proof Awaiting Review',
+            deliveryStage: 'Client Review',
+            finalApproval: null, // Ensure approval of v1 cannot count as approval of v2
+            lastUpdated: now,
+          };
+          return updated;
+        }
+        return d;
+      }),
+    }));
+    if (updated) {
+      logActivity(
+        'Studio Director',
+        'Revised Proof Resubmitted',
+        'Deliverable',
+        updated.title,
+        `Resubmitted revised layout proof v${updated.version} for "${updated.title}". Changes addressed.`,
+        deliverableId
+      );
+    }
+    return updated;
+  }, [persistChanges, logActivity]);
+
+  const markDeliverableReadyForDelivery = useCallback((deliverableId) => {
+    let updated = null;
+    persistChanges((prev) => ({
+      ...prev,
+      deliverables: prev.deliverables.map((d) => {
+        if (d.id === deliverableId) {
+          if (d.clientApprovalStatus !== 'Approved') {
+            throw new Error('Deliverable cannot be marked ready for delivery without client sign-off approval.');
+          }
+          updated = {
+            ...d,
+            deliveryStage: 'Ready for Delivery',
+            lastUpdated: new Date().toISOString(),
+          };
+          return updated;
+        }
+        return d;
+      }),
+    }));
+    if (updated) {
+      logActivity('Studio Director', 'Album Ready for Delivery', 'Deliverable', updated.title, `Marked "${updated.title}" ready for bindery print delivery.`, deliverableId);
+    }
+    return updated;
+  }, [persistChanges, logActivity]);
+
+  const markDeliverableDelivered = useCallback((deliverableId) => {
+    let updated = null;
+    const now = new Date().toISOString();
+    persistChanges((prev) => ({
+      ...prev,
+      deliverables: prev.deliverables.map((d) => {
+        if (d.id === deliverableId) {
+          if (d.deliveryStage !== 'Ready for Delivery' && d.deliveryStage !== 'Final Handover') {
+            throw new Error('Deliverable must be ready for delivery before marking as delivered.');
+          }
+          updated = {
+            ...d,
+            deliveryStage: 'Delivered',
+            deliveredAt: now,
+            lastUpdated: now,
+          };
+          return updated;
+        }
+        return d;
+      }),
+    }));
+    if (updated) {
+      logActivity('Studio Director', 'Deliverable Handed Over', 'Deliverable', updated.title, `Handed over "${updated.title}" to client.`, deliverableId);
+    }
+    return updated;
   }, [persistChanges, logActivity]);
 
   // ==========================================
@@ -1400,6 +1646,12 @@ export function StudioDataProvider({ children }) {
     deleteAllDeliverables,
     deleteDeliverablesForProject,
     updateDeliverableItemStatus,
+    publishProofForReview,
+    submitSpreadReview,
+    submitFinalAlbumApproval,
+    resubmitRevisedProof,
+    markDeliverableReadyForDelivery,
+    markDeliverableDelivered,
     getDeliverablesByProject,
     // payment & invoice mutations
     addPayment,
@@ -1472,6 +1724,12 @@ export function StudioDataProvider({ children }) {
     deleteAllDeliverables,
     deleteDeliverablesForProject,
     updateDeliverableItemStatus,
+    publishProofForReview,
+    submitSpreadReview,
+    submitFinalAlbumApproval,
+    resubmitRevisedProof,
+    markDeliverableReadyForDelivery,
+    markDeliverableDelivered,
     getDeliverablesByProject,
     addPayment,
     recordEventPayment,

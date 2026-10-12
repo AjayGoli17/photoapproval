@@ -18,7 +18,7 @@ import {
 import { useStudioData } from '../context/StudioDataContext';
 import { useToast } from '../context/ToastContext';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Card } from '../components/common/Card';
+import { Card, MetricCard } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { SearchInput } from '../components/common/SearchInput';
@@ -37,6 +37,12 @@ export function ProjectsPage() {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+
+  // Status metrics
+  const activeCount = projects.filter((p) => p.status !== 'Completed').length;
+  const reviewCount = projects.filter((p) => p.status === 'Client Review').length;
+  const inProductionCount = projects.filter((p) => p.status === 'In Production' || p.status === 'Post-Production').length;
+  const completedCount = projects.filter((p) => p.status === 'Completed').length;
 
   // Compute enriched project list
   const enrichedProjects = useMemo(() => {
@@ -133,6 +139,34 @@ export function ProjectsPage() {
           </div>
         }
       />
+
+      {/* Summary KPI Tiles */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard
+          label="Active Workspaces"
+          value={activeCount}
+          subtitle={`${projects.length} total created`}
+          icon={FolderKanban}
+        />
+        <MetricCard
+          label="Client Review"
+          value={reviewCount}
+          subtitle="Awaiting client sign-off"
+          icon={Sparkles}
+        />
+        <MetricCard
+          label="In Production"
+          value={inProductionCount}
+          subtitle="Culling & color grading"
+          icon={Clock}
+        />
+        <MetricCard
+          label="Completed"
+          value={completedCount}
+          subtitle="Delivered & archived"
+          icon={CheckCircle2}
+        />
+      </div>
 
       {/* Control bar: Filters, Search, View Mode */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-4 bg-surface rounded-xl border border-border">
@@ -348,7 +382,7 @@ export function ProjectsPage() {
       ) : (
         /* Compact Table List View */
         <Card className="overflow-hidden border border-border">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-border bg-ivory-50 text-[11px] font-semibold text-charcoal-500 uppercase tracking-wider">

@@ -1,4 +1,5 @@
 import React, { useId } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '../../utils/formatters';
 
 export function FormField({
@@ -73,7 +74,7 @@ export function FormField({
 }
 
 export const inputBaseStyles =
-  'w-full px-3.5 py-2 text-sm bg-surface border border-border rounded-xl text-charcoal placeholder-charcoal-400 focus:outline-none focus:ring-2 focus:ring-terracotta/25 focus:border-terracotta focus-visible:ring-2 focus-visible:ring-terracotta/30 focus-visible:border-terracotta transition-colors disabled:bg-ivory-100 disabled:cursor-not-allowed';
+  'w-full px-3.5 py-2 text-sm bg-surface border border-border rounded-xl text-charcoal placeholder-charcoal-400 focus:outline-none focus:ring-2 focus:ring-terracotta/25 focus:border-terracotta focus-visible:ring-2 focus-visible:ring-terracotta/30 focus-visible:border-terracotta transition-colors disabled:bg-ivory-100 disabled:cursor-not-allowed shadow-2xs';
 
 export const FormInput = React.forwardRef(function FormInput(
   { className, error, ...props },
@@ -94,23 +95,30 @@ export const FormInput = React.forwardRef(function FormInput(
 });
 
 export const FormSelect = React.forwardRef(function FormSelect(
-  { className, error, children, ...props },
+  { className, error, children, id, 'aria-invalid': ariaInvalid, 'aria-describedby': ariaDescribedBy, ...props },
   ref
 ) {
   return (
-    <select
-      ref={ref}
-      aria-invalid={error ? 'true' : props['aria-invalid']}
-      className={cn(
-        inputBaseStyles,
-        'pr-8 appearance-none bg-no-repeat bg-[right_0.75rem_center]',
-        error && 'border-rose focus:ring-rose/25 focus:border-rose focus-visible:ring-rose/30',
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </select>
+    <div className="relative w-full">
+      <select
+        ref={ref}
+        id={id}
+        aria-invalid={error ? 'true' : ariaInvalid}
+        aria-describedby={ariaDescribedBy}
+        className={cn(
+          inputBaseStyles,
+          'pr-9 appearance-none bg-surface cursor-pointer',
+          error && 'border-rose focus:ring-rose/25 focus:border-rose focus-visible:ring-rose/30',
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </select>
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-charcoal-400">
+        <ChevronDown className="w-4 h-4 stroke-[2]" aria-hidden="true" />
+      </div>
+    </div>
   );
 });
 

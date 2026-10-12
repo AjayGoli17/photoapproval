@@ -24,6 +24,14 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-ivory text-charcoal flex flex-col md:flex-row antialiased selection:bg-terracotta-subtle selection:text-terracotta-dark">
+      {/* Accessible skip link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 z-50 px-4 py-2 bg-terracotta text-white font-medium text-xs rounded-xl shadow-elevated focus:outline-none focus:ring-2 focus:ring-terracotta/40"
+      >
+        Skip to main content
+      </a>
+
       {/* Sidebar */}
       <Sidebar
         isCollapsed={isSidebarCollapsed}
@@ -39,7 +47,7 @@ export function AppLayout() {
           onOpenSearch={() => setIsSearchOpen(true)}
         />
 
-        <main className="flex-1 min-w-0 p-3 sm:p-6 lg:p-8 w-full max-w-[1600px]">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-3.5 sm:p-5 md:p-6 lg:p-8 w-full max-w-[1600px] mx-auto focus:outline-none">
           <Outlet />
         </main>
       </div>

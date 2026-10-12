@@ -22,7 +22,7 @@ import {
 import { useStudioData } from '../context/StudioDataContext';
 import { useToast } from '../context/ToastContext';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Card } from '../components/common/Card';
+import { Card, MetricCard } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { SearchInput } from '../components/common/SearchInput';
@@ -147,46 +147,35 @@ export function DeliverablesPage() {
       />
 
       {/* Summary Metrics Cards (Req 3A) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4 bg-surface">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-charcoal-400 block">
-            Workspaces with Proofs
-          </span>
-          <div className="text-2xl font-bold text-charcoal mt-2 font-serif">
-            {summaryMetrics.projectsWithDeliverables}
-          </div>
-          <span className="text-xs text-charcoal-500 mt-0.5 block">Active client delivery pipelines</span>
-        </Card>
-
-        <Card className="p-4 bg-surface">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-amber block">
-            Awaiting Client Approval
-          </span>
-          <div className="text-2xl font-bold text-amber font-serif mt-2">
-            {summaryMetrics.awaitingApproval}
-          </div>
-          <span className="text-xs text-amber-dark mt-0.5 block">Proofs in review or pending</span>
-        </Card>
-
-        <Card className="p-4 bg-surface">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-sage block">
-            Approved Deliverables
-          </span>
-          <div className="text-2xl font-bold text-sage font-serif mt-2">
-            {summaryMetrics.approvedCount}
-          </div>
-          <span className="text-xs text-sage-dark mt-0.5 block">Client signed-off & completed</span>
-        </Card>
-
-        <Card className="p-4 bg-surface">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-rose block">
-            Revisions Requested
-          </span>
-          <div className="text-2xl font-bold text-rose-dark font-serif mt-2">
-            {summaryMetrics.revisionsRequested}
-          </div>
-          <span className="text-xs text-rose-dark mt-0.5 block">Requires darkroom retouching loop</span>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+        <MetricCard
+          title="Workspaces with Proofs"
+          value={summaryMetrics.projectsWithDeliverables}
+          subtitle="Active client delivery pipelines"
+          icon={Package}
+          variant="default"
+        />
+        <MetricCard
+          title="Awaiting Client Approval"
+          value={summaryMetrics.awaitingApproval}
+          subtitle="Proofs in review or pending"
+          icon={Clock}
+          variant="amber"
+        />
+        <MetricCard
+          title="Approved Deliverables"
+          value={summaryMetrics.approvedCount}
+          subtitle="Client signed-off & completed"
+          icon={CheckCircle2}
+          variant="sage"
+        />
+        <MetricCard
+          title="Revisions Requested"
+          value={summaryMetrics.revisionsRequested}
+          subtitle="Requires darkroom retouching"
+          icon={AlertCircle}
+          variant="rose"
+        />
       </div>
 
       {/* Filter and Search Bar */}
@@ -309,13 +298,16 @@ export function DeliverablesPage() {
                           isApproved
                             ? 'sage'
                             : isRevision
-                            ? 'destructive'
+                            ? 'rose'
                             : deliv.clientApprovalStatus.includes('Review') || deliv.clientApprovalStatus.includes('Progress')
                             ? 'terracotta'
                             : 'amber'
                         }
                       >
                         {deliv.clientApprovalStatus}
+                      </Badge>
+                      <Badge size="xs" variant="default" className="font-mono">
+                        v{deliv.proofVersion || 1}
                       </Badge>
                       <span className="text-xs text-charcoal-500 font-medium">
                         Stage: {deliv.deliveryStage || 'Client Selection'}
@@ -339,9 +331,16 @@ export function DeliverablesPage() {
                       {deliv.description}
                     </p>
 
-                    <div className="pt-1 flex items-center gap-2 text-xs font-mono text-charcoal-400">
-                      <ExternalLink className="w-3.5 h-3.5 text-terracotta shrink-0" />
-                      <span className="text-terracotta truncate">{deliv.shareLink}</span>
+                    <div className="pt-1 flex items-center gap-3 text-xs">
+                      <Link
+                        to={`/proofs/${deliv.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-terracotta hover:text-terracotta-hover font-semibold hover:underline"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Open Client Review Portal</span>
+                      </Link>
                     </div>
                   </div>
 
@@ -496,7 +495,7 @@ export function DeliverablesPage() {
                           deliv.clientApprovalStatus === 'Approved'
                             ? 'sage'
                             : deliv.clientApprovalStatus === 'Revisions Requested'
-                            ? 'destructive'
+                            ? 'rose'
                             : 'amber'
                         }
                       >
@@ -509,7 +508,16 @@ export function DeliverablesPage() {
                     </td>
 
                     <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Link
+                          to={`/proofs/${deliv.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 text-charcoal-400 hover:text-terracotta rounded transition-colors"
+                          title="Open Client Portal"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
                         <Button
                           variant="outline"
                           size="xs"

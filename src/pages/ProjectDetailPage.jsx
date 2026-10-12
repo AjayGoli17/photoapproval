@@ -14,19 +14,24 @@ import {
   DollarSign,
   FileText,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   ListTodo,
   Milestone,
   ArrowRight,
   ExternalLink,
+  Sparkles,
+  Eye,
 } from 'lucide-react';
 import { useStudioData } from '../context/StudioDataContext';
 import { useToast } from '../context/ToastContext';
 import { Breadcrumbs } from '../components/layout/Breadcrumbs';
-import { Card, CardHeader, CardContent } from '../components/common/Card';
+import { Card, CardHeader, CardContent, MetricCard } from '../components/common/Card';
 import { Badge, PriorityBadge } from '../components/common/Badge';
 import { Avatar } from '../components/common/Avatar';
 import { Button } from '../components/common/Button';
+import { Tabs } from '../components/common/Tabs';
+import { Alert } from '../components/common/Alert';
 import { EmptyState } from '../components/common/EmptyState';
 import { Modal } from '../components/common/Modal';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
@@ -237,12 +242,35 @@ export function ProjectDetailPage() {
                 </Link>
               ) : (
                 'Unassigned'
+              )}
+              {event && (
+                <>
+                  {' '}&bull; Event:{' '}
+                  <Link to={`/events/${event.id}`} className="text-ivory font-medium hover:underline">
+                    {event.title}
+                  </Link>
+                </>
               )}{' '}
               &bull; Shoot Date: {formatDate(project.shootDate)} &bull; Deadline: {formatDate(project.deliveryDeadline)}
             </p>
+
+            {/* Assigned Crew Avatars in Hero */}
+            {involvedTeam.length > 0 && (
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/10">
+                <span className="text-xs text-charcoal-300">Crew:</span>
+                <div className="flex -space-x-1.5 overflow-hidden">
+                  {involvedTeam.slice(0, 5).map(({ member }) => (
+                    <Avatar key={member.id} src={member.avatar} name={member.name} size="xs" className="ring-2 ring-charcoal-900" />
+                  ))}
+                </div>
+                <span className="text-xs text-charcoal-200">
+                  {involvedTeam.map(({ member }) => member.name.split(' ')[0]).join(', ')}
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto shrink-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 w-full sm:w-auto shrink-0">
             <div className="bg-surface/15 backdrop-blur-md p-3.5 rounded-xl border border-white/20 text-left sm:text-right w-full sm:w-auto min-w-0 sm:min-w-[170px]">
               <span className="text-[11px] text-charcoal-300 block">Workspace Progress</span>
               <span className="text-2xl font-bold text-white mt-0.5 block font-serif">
@@ -257,6 +285,17 @@ export function ProjectDetailPage() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
+              {projectDeliverable && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="bg-terracotta hover:bg-terracotta-hover text-white shadow-2xs"
+                  leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+                  onClick={() => setActiveProofingDeliv(projectDeliverable)}
+                >
+                  Review Proofs
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -281,88 +320,73 @@ export function ProjectDetailPage() {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="border-b border-border">
-        <nav className="flex space-x-1 sm:space-x-4 overflow-x-auto pb-px">
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-3 px-3.5 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                  isActive
-                    ? 'border-terracotta text-terracotta font-semibold'
-                    : 'border-transparent text-charcoal-500 hover:text-charcoal hover:border-border'
-                }`}
-              >
-                {tab.label}
-                {tab.id === 'tasks' && ` (${projectTasks.length})`}
-                {tab.id === 'notes' && ` (${projectNotes.length})`}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+      <Tabs
+        tabs={TABS.map((tab) => ({
+          key: tab.id,
+          label: tab.label,
+          count:
+            tab.id === 'tasks'
+              ? projectTasks.length
+              : tab.id === 'notes'
+              ? projectNotes.length
+              : tab.id === 'deliverables'
+              ? projectDeliverables.length
+              : undefined,
+        }))}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        variant="underline"
+      />
 
       {/* Tab 1: Overview */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Summary KPI Cards */}
+          {/* Urgent Revision Alert Banner */}
+          {projectDeliverable && projectDeliverable.clientApprovalStatus === 'Revisions Requested' && (
+            <Alert
+              variant="danger"
+              title="Client Revisions Pending Review"
+              message={`The client requested changes on ${projectDeliverable.rejectedPhotos || 1} photographs in "${projectDeliverable.title}". Please review their feedback notes.`}
+              action={
+                <Button
+                  size="xs"
+                  variant="primary"
+                  className="bg-rose hover:bg-rose-dark text-white"
+                  leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+                  onClick={() => setActiveProofingDeliv(projectDeliverable)}
+                >
+                  Review Proof Revisions
+                </Button>
+              }
+            />
+          )}
+
+          {/* Summary Metric Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="p-4 bg-surface">
-              <span className="text-[11px] text-charcoal-400 font-medium uppercase tracking-wider block">
-                Tasks Completed
-              </span>
-              <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-2xl font-bold text-charcoal font-serif">
-                  {projectTasks.filter((t) => t.status === 'Done' || t.status === 'Completed').length} / {projectTasks.length}
-                </span>
-                <span className="text-xs text-sage font-semibold">{projectProgress}%</span>
-              </div>
-            </Card>
-
-            <Card className="p-4 bg-surface">
-              <span className="text-[11px] text-charcoal-400 font-medium uppercase tracking-wider block">
-                Deliverable Status
-              </span>
-              <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-xl font-bold text-charcoal font-serif">
-                  {projectDeliverable ? projectDeliverable.status : 'Not Initialized'}
-                </span>
-                {projectDeliverable && (
-                  <span className="text-xs text-terracotta font-medium">
-                    {projectDeliverable.approvedPhotos}/{projectDeliverable.totalPhotos}
-                  </span>
-                )}
-              </div>
-            </Card>
-
-            <Card className="p-4 bg-surface">
-              <span className="text-[11px] text-charcoal-400 font-medium uppercase tracking-wider block">
-                Crew Assigned
-              </span>
-              <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-2xl font-bold text-charcoal font-serif">
-                  {involvedTeam.length}
-                </span>
-                <span className="text-xs text-charcoal-500">artists</span>
-              </div>
-            </Card>
-
-            <Card className="p-4 bg-surface">
-              <span className="text-[11px] text-charcoal-400 font-medium uppercase tracking-wider block">
-                Event Balance
-              </span>
-              <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-xl font-bold text-charcoal font-serif">
-                  {formatCurrency(balanceDue)}
-                </span>
-                <span className={`text-[11px] font-semibold ${balanceDue === 0 ? 'text-sage' : 'text-amber'}`}>
-                  {balanceDue === 0 ? 'Settled' : 'Pending'}
-                </span>
-              </div>
-            </Card>
+            <MetricCard
+              label="Tasks Completed"
+              value={`${projectTasks.filter((t) => t.status === 'Done' || t.status === 'Completed').length} / ${projectTasks.length}`}
+              subtitle={`${projectProgress}% workspace completion`}
+              icon={CheckSquare}
+            />
+            <MetricCard
+              label="Deliverable Status"
+              value={projectDeliverable ? (projectDeliverable.clientApprovalStatus || projectDeliverable.status) : 'Not Started'}
+              subtitle={projectDeliverable ? `${projectDeliverable.approvedPhotos}/${projectDeliverable.totalPhotos} photos approved` : 'No deliverables'}
+              icon={ImageIcon}
+            />
+            <MetricCard
+              label="Crew Assigned"
+              value={involvedTeam.length}
+              subtitle="Active studio artists"
+              icon={Users}
+            />
+            <MetricCard
+              label="Event Balance"
+              value={formatCurrency(balanceDue)}
+              subtitle={balanceDue === 0 ? 'Settled in full' : 'Balance remaining'}
+              icon={DollarSign}
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -420,6 +444,14 @@ export function ProjectDetailPage() {
                             className="p-3 bg-ivory-50 rounded-lg border border-border flex items-center justify-between gap-3 text-xs"
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => toggleTaskComplete(task.id)}
+                                className="w-4 h-4 rounded border border-border hover:border-terracotta bg-surface flex items-center justify-center shrink-0 transition-colors"
+                                title="Mark task as complete"
+                              >
+                                <span className="sr-only">Mark complete</span>
+                              </button>
                               <PriorityBadge priority={task.priority} />
                               <span className="font-medium text-charcoal truncate">{task.title}</span>
                             </div>
@@ -1007,7 +1039,7 @@ export function ProjectDetailPage() {
                                 deliv.clientApprovalStatus === 'Approved'
                                   ? 'sage'
                                   : deliv.clientApprovalStatus === 'Revisions Requested'
-                                  ? 'destructive'
+                                  ? 'rose'
                                   : 'amber'
                               }
                             >
@@ -1020,6 +1052,15 @@ export function ProjectDetailPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
+                          <Link
+                            to={`/proofs/${deliv.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 text-charcoal-400 hover:text-terracotta rounded transition-colors"
+                            title="Open Client Review Portal"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
                           <Button
                             size="xs"
                             variant="primary"

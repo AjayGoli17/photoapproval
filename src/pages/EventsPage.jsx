@@ -12,11 +12,14 @@ import {
   Trash2,
   IndianRupee,
   Users,
+  FolderKanban,
+  DollarSign,
+  Sparkles,
 } from 'lucide-react';
 import { useStudioData } from '../context/StudioDataContext';
 import { useToast } from '../context/ToastContext';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Card } from '../components/common/Card';
+import { Card, MetricCard } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { Avatar } from '../components/common/Avatar';
@@ -27,7 +30,7 @@ import { EventModal } from '../components/modals/EventModal';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
 export function EventsPage() {
-  const { events, clients, team, getEventFinancials, deleteEvent, deleteAllEvents } = useStudioData();
+  const { events, clients, team, projects, getEventFinancials, deleteEvent, deleteAllEvents, createProjectForEvent } = useStudioData();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -45,7 +48,7 @@ export function EventsPage() {
   const [eventToDelete, setEventToDelete] = useState(null);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
 
-  const statuses = ['All', 'Confirmed', 'In Progress', 'Inquiry', 'Quoted', 'Completed', 'Cancelled'];
+  const statuses = ['All', 'Confirmed', 'In Progress', 'Completed'];
 
   const eventTypes = [
     'All',
@@ -58,6 +61,15 @@ export function EventsPage() {
   ];
 
   const todayStr = new Date().toISOString().split('T')[0];
+
+  // Summary Metrics
+  const upcomingCount = events.filter((e) => e.startDate >= todayStr && e.status !== 'Cancelled').length;
+  const activeWorkspacesCount = events.filter((e) => projects.some((p) => p.eventId === e.id)).length;
+  const totalAgreedRevenue = events.reduce((sum, e) => sum + Number(e.packageValue || 0), 0);
+  const totalPendingBalance = events.reduce((sum, e) => {
+    const fin = getEventFinancials(e.id);
+    return sum + (fin?.outstandingBalance || 0);
+  }, 0);
 
   const filteredEvents = events.filter((e) => {
     const term = searchTerm.toLowerCase().trim();
@@ -142,6 +154,34 @@ export function EventsPage() {
         }
       />
 
+      {/* Summary KPI Tiles */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard
+          label="Total Bookings"
+          value={events.length}
+          subtitle="Contracted shoots"
+          icon={CalendarDays}
+        />
+        <MetricCard
+          label="Upcoming Shoots"
+          value={upcomingCount}
+          subtitle="Scheduled on calendar"
+          icon={Calendar}
+        />
+        <MetricCard
+          label="Workspaces Active"
+          value={activeWorkspacesCount}
+          subtitle={`${events.length - activeWorkspacesCount} pending setup`}
+          icon={FolderKanban}
+        />
+        <MetricCard
+          label="Total Booked Value"
+          value={formatCurrency(totalAgreedRevenue)}
+          subtitle={totalPendingBalance > 0 ? `${formatCurrency(totalPendingBalance)} pending` : 'All settled'}
+          icon={DollarSign}
+        />
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
         <SearchInput
@@ -153,15 +193,36 @@ export function EventsPage() {
         />
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Timeline Segmentation: All vs Upcoming vs Past */}
+          <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-border">
+            {[
+              { id: 'All', label: 'All Dates' },
+              { id: 'Upcoming', label: `Upcoming (${upcomingCount})` },
+              { id: 'Past', label: 'Past / Done' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setDateFilter(tab.id)}
+                className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+                  dateFilter === tab.id
+                    ? 'bg-terracotta text-white shadow-2xs'
+                    : 'text-charcoal-600 hover:text-charcoal hover:bg-ivory-100'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           {/* Status Tabs */}
           <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-border overflow-x-auto">
-            {['All', 'Confirmed', 'In Progress', 'Completed'].map((st) => (
+            {statuses.map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
                 className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
                   statusFilter === st
-                    ? 'bg-terracotta text-white shadow-2xs'
+                    ? 'bg-charcoal text-white shadow-2xs'
                     : 'text-charcoal-600 hover:text-charcoal hover:bg-ivory-100'
                 }`}
               >
@@ -181,17 +242,6 @@ export function EventsPage() {
                 {t === 'All' ? 'All Event Types' : t}
               </option>
             ))}
-          </select>
-
-          {/* Timeline filter */}
-          <select
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs font-medium bg-surface border border-border rounded-xl text-charcoal focus:outline-none focus:ring-2 focus:ring-terracotta/25"
-          >
-            <option value="All">All Dates</option>
-            <option value="Upcoming">Upcoming Shoots</option>
-            <option value="Past">Past / Archived</option>
           </select>
         </div>
       </div>
@@ -220,14 +270,15 @@ export function EventsPage() {
         />
       ) : (
         <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left text-sm border-collapse min-w-[750px]">
-              <thead className="bg-ivory-50 border-b border-border text-xs uppercase tracking-wider text-charcoal-500 font-semibold">
+              <thead className="bg-ivory-50 border-b border-border text-xs uppercase tracking-wider text-charcoal-500 font-semibold select-none">
                 <tr>
                   <th className="p-4">Event & Type</th>
                   <th className="p-4">Client</th>
                   <th className="p-4">Shoot Date & Time</th>
                   <th className="p-4">Venue</th>
+                  <th className="p-4 text-center">Workspace</th>
                   <th className="p-4 text-right">Agreed Price</th>
                   <th className="p-4 text-center">Payment</th>
                   <th className="p-4">Status</th>
@@ -238,12 +289,21 @@ export function EventsPage() {
                 {filteredEvents.map((evt) => {
                   const client = clients.find((c) => c.id === evt.clientId);
                   const fin = getEventFinancials(evt.id);
+                  const linkedProject = projects.find((p) => p.eventId === evt.id);
 
                   return (
                     <tr
                       key={evt.id}
                       onClick={() => navigate(`/events/${evt.id}`)}
-                      className="hover:bg-ivory-50/70 transition-colors cursor-pointer group"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigate(`/events/${evt.id}`);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      className="hover:bg-ivory-50/70 transition-colors cursor-pointer group focus:outline-none focus-visible:bg-ivory-100 focus-visible:ring-1 focus-visible:ring-terracotta/40"
                     >
                       {/* Event Title & Type */}
                       <td className="p-4">
@@ -294,6 +354,39 @@ export function EventsPage() {
                           <MapPin className="w-3.5 h-3.5 text-charcoal-400 flex-shrink-0" />
                           <span className="truncate">{evt.venue}</span>
                         </div>
+                      </td>
+
+                      {/* Production Workspace */}
+                      <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        {linkedProject ? (
+                          <Link
+                            to={`/projects/${linkedProject.id}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20 transition-colors"
+                            title={`Open workspace for ${evt.title}`}
+                          >
+                            <FolderKanban className="w-3.5 h-3.5" />
+                            <span>{linkedProject.status}</span>
+                          </Link>
+                        ) : (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            className="text-xs"
+                            leftIcon={<Plus className="w-3 h-3" />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              try {
+                                const proj = createProjectForEvent(evt.id);
+                                toast.success('Workspace Created', `Created workspace for ${evt.title}`);
+                                navigate(`/projects/${proj.id}`);
+                              } catch (err) {
+                                toast.error('Workspace Setup Failed', err.message);
+                              }
+                            }}
+                          >
+                            Setup
+                          </Button>
+                        )}
                       </td>
 
                       {/* Agreed Price */}

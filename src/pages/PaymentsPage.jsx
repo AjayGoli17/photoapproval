@@ -19,7 +19,7 @@ import {
 import { useStudioData } from '../context/StudioDataContext';
 import { useToast } from '../context/ToastContext';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Card } from '../components/common/Card';
+import { Card, MetricCard } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { SearchInput } from '../components/common/SearchInput';
@@ -126,8 +126,9 @@ export function PaymentsPage() {
       const matchesStatus =
         statusFilter === 'All' ||
         (statusFilter === 'Paid' && p.computedStatus === 'Paid') ||
+        (statusFilter === 'Partially Paid' && p.computedStatus.includes('Partially Paid')) ||
         (statusFilter === 'Pending' && p.computedStatus === 'Pending') ||
-        (statusFilter === 'Overdue' && p.computedStatus === 'Overdue');
+        (statusFilter === 'Overdue' && p.computedStatus.includes('Overdue'));
 
       const matchesMethod =
         methodFilter === 'All' ||
@@ -188,54 +189,35 @@ export function PaymentsPage() {
       />
 
       {/* 4 Financial Summary KPI Cards (Req 4A) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4 bg-surface">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-sage block">
-            Total Revenue Received
-          </span>
-          <div className="text-2xl font-bold text-sage mt-2 font-serif">
-            {formatCurrency(financialMetrics.totalReceived)}
-          </div>
-          <span className="text-xs text-charcoal-500 mt-0.5 block flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-sage" /> Settled in bank account
-          </span>
-        </Card>
-
-        <Card className="p-4 bg-surface">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-amber block">
-            Outstanding Balances
-          </span>
-          <div className="text-2xl font-bold text-amber mt-2 font-serif">
-            {formatCurrency(financialMetrics.outstandingBalances)}
-          </div>
-          <span className="text-xs text-charcoal-500 mt-0.5 block">
-            Contracted balance pending
-          </span>
-        </Card>
-
-        <Card className="p-4 bg-surface">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-rose block">
-            Overdue Invoices
-          </span>
-          <div className="text-2xl font-bold text-rose-dark mt-2 font-serif">
-            {financialMetrics.overdueCount > 0 ? formatCurrency(financialMetrics.overdueAmount) : '₹0'}
-          </div>
-          <span className="text-xs text-rose-dark mt-0.5 block">
-            {financialMetrics.overdueCount} payment(s) past due date
-          </span>
-        </Card>
-
-        <Card className="p-4 bg-surface">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-terracotta block">
-            Received This Month
-          </span>
-          <div className="text-2xl font-bold text-charcoal mt-2 font-serif">
-            {formatCurrency(financialMetrics.receivedThisMonth)}
-          </div>
-          <span className="text-xs text-charcoal-500 mt-0.5 block">
-            Current fiscal period receipts
-          </span>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+        <MetricCard
+          title="Total Revenue Received"
+          value={formatCurrency(financialMetrics.totalReceived)}
+          subtitle="Settled in bank account"
+          icon={CheckCircle2}
+          variant="sage"
+        />
+        <MetricCard
+          title="Outstanding Balances"
+          value={formatCurrency(financialMetrics.outstandingBalances)}
+          subtitle="Contracted balance pending"
+          icon={Clock}
+          variant="amber"
+        />
+        <MetricCard
+          title="Overdue Invoices"
+          value={financialMetrics.overdueCount > 0 ? formatCurrency(financialMetrics.overdueAmount) : '₹0'}
+          subtitle={`${financialMetrics.overdueCount} payment(s) past due`}
+          icon={AlertCircle}
+          variant="rose"
+        />
+        <MetricCard
+          title="Received This Month"
+          value={formatCurrency(financialMetrics.receivedThisMonth)}
+          subtitle="Current fiscal period"
+          icon={CreditCard}
+          variant="terracotta"
+        />
       </div>
 
       {/* Filter and Search Bar */}
@@ -256,6 +238,7 @@ export function PaymentsPage() {
           >
             <option value="All">All Statuses</option>
             <option value="Paid">Paid Only</option>
+            <option value="Partially Paid">Partially Paid</option>
             <option value="Pending">Pending Invoices</option>
             <option value="Overdue">Overdue Invoices</option>
           </select>
@@ -360,7 +343,15 @@ export function PaymentsPage() {
                       <td className="py-3.5 px-4">
                         <Badge
                           size="xs"
-                          variant={isPaid ? 'sage' : isOverdue ? 'destructive' : 'amber'}
+                          variant={
+                            isPaid
+                              ? 'sage'
+                              : isOverdue
+                              ? 'rose'
+                              : p.computedStatus.includes('Partially Paid')
+                              ? 'terracotta'
+                              : 'amber'
+                          }
                         >
                           {p.computedStatus}
                         </Badge>

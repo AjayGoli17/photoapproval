@@ -79,6 +79,24 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
     };
   }, []);
 
+  const toggleActions = () => {
+    setIsActionsOpen((prev) => !prev);
+    setIsActivityOpen(false);
+    setIsProfileOpen(false);
+  };
+
+  const toggleActivity = () => {
+    setIsActivityOpen((prev) => !prev);
+    setIsActionsOpen(false);
+    setIsProfileOpen(false);
+  };
+
+  const toggleProfile = () => {
+    setIsProfileOpen((prev) => !prev);
+    setIsActionsOpen(false);
+    setIsActivityOpen(false);
+  };
+
   const handleResetData = () => {
     setIsResetting(true);
     setTimeout(() => {
@@ -112,19 +130,19 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-surface/90 backdrop-blur-md border-b border-border h-16 px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2.5 sm:gap-4">
+    <header className="sticky top-0 z-20 bg-surface/90 backdrop-blur-md border-b border-border h-16 px-3.5 sm:px-6 lg:px-8 flex items-center justify-between gap-2.5 sm:gap-4 select-none">
       {/* Left section: mobile hamburger & contextual title */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <button
           onClick={onOpenMobileNav}
-          className="md:hidden p-2 rounded-xl text-charcoal-500 hover:text-charcoal hover:bg-ivory-200 transition-colors"
+          className="md:hidden p-2 rounded-xl text-charcoal-500 hover:text-charcoal hover:bg-ivory-200 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/40"
           aria-label="Open navigation menu"
         >
           <Menu className="w-5 h-5" />
         </button>
 
         <div className="hidden sm:block min-w-0">
-          <span className="text-sm font-semibold text-charcoal truncate block">
+          <span className="text-sm font-semibold text-charcoal truncate block tracking-tight">
             {getHeaderContext()}
           </span>
         </div>
@@ -136,7 +154,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
           type="button"
           onClick={onOpenSearch}
           aria-label="Open global search palette (Command+K)"
-          className="w-full flex items-center justify-between px-3 py-1.5 text-xs sm:text-sm bg-ivory-100/80 hover:bg-ivory-200/80 border border-border rounded-xl text-charcoal-400 hover:text-charcoal-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30 transition-colors shadow-subtle group min-w-0"
+          className="w-full flex items-center justify-between px-3 py-2 text-xs sm:text-sm bg-ivory-100/90 hover:bg-ivory-200/90 border border-border rounded-xl text-charcoal-400 hover:text-charcoal-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30 transition-colors shadow-subtle group min-w-0 min-h-[38px]"
         >
           <div className="flex items-center gap-2 truncate min-w-0">
             <Search className="w-4 h-4 text-charcoal-400 group-hover:text-terracotta transition-colors flex-shrink-0" />
@@ -157,7 +175,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
             size="sm"
             variant="primary"
             leftIcon={<Plus className="w-4 h-4" />}
-            onClick={() => setIsActionsOpen(!isActionsOpen)}
+            onClick={toggleActions}
             aria-haspopup="menu"
             aria-expanded={isActionsOpen}
             className="hidden sm:inline-flex"
@@ -167,8 +185,8 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
           <Button
             size="iconSm"
             variant="primary"
-            onClick={() => setIsActionsOpen(!isActionsOpen)}
-            className="sm:hidden"
+            onClick={toggleActions}
+            className="sm:hidden min-w-[36px] min-h-[36px]"
             aria-label="Create new record"
             aria-haspopup="menu"
             aria-expanded={isActionsOpen}
@@ -244,15 +262,17 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
         {/* Demo Activity Bell */}
         <div className="relative" ref={activityRef}>
           <button
-            onClick={() => setIsActivityOpen(!isActivityOpen)}
-            className="p-2 rounded-xl text-charcoal-500 hover:text-charcoal hover:bg-ivory-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30 transition-colors relative"
+            onClick={toggleActivity}
+            className="p-2 rounded-xl text-charcoal-500 hover:text-charcoal hover:bg-ivory-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30 transition-colors relative min-w-[38px] min-h-[38px] flex items-center justify-center"
             title="Studio Activity Feed"
             aria-label="Studio Activity Feed"
             aria-haspopup="dialog"
             aria-expanded={isActivityOpen}
           >
             <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-terracotta rounded-full ring-2 ring-surface" />
+            {activityLog.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-terracotta rounded-full ring-2 ring-surface" />
+            )}
           </button>
 
           {isActivityOpen && (
@@ -315,8 +335,8 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
         {/* Demo Profile Menu */}
         <div className="relative" ref={profileRef}>
           <button
-            onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex items-center gap-2 p-1 pl-1.5 rounded-full hover:bg-ivory-200 border border-transparent hover:border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30 transition-colors"
+            onClick={toggleProfile}
+            className="flex items-center gap-2 p-1 pl-1.5 rounded-full hover:bg-ivory-200 border border-transparent hover:border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30 transition-colors min-h-[38px]"
             aria-label="Demo Studio Profile"
             aria-haspopup="menu"
             aria-expanded={isProfileOpen}

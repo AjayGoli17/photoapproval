@@ -31,7 +31,7 @@ export function SearchInput({
         placeholder={placeholder}
         autoFocus={autoFocus}
         aria-label={props['aria-label'] || placeholder}
-        className="w-full pl-9 pr-14 py-2 text-sm bg-surface border border-border rounded-xl text-charcoal placeholder-charcoal-400 focus:outline-none focus:ring-2 focus:ring-terracotta/25 focus:border-terracotta focus-visible:ring-2 focus-visible:ring-terracotta/30 focus-visible:border-terracotta transition-colors shadow-subtle"
+        className="w-full pl-9 pr-14 py-2 min-h-[38px] sm:min-h-[40px] text-sm bg-surface border border-border rounded-xl text-charcoal placeholder-charcoal-400 focus:outline-none focus:ring-2 focus:ring-terracotta/25 focus:border-terracotta focus-visible:ring-2 focus-visible:ring-terracotta/30 focus-visible:border-terracotta transition-colors shadow-subtle"
         {...props}
       />
       <div className="absolute right-3 flex items-center gap-1.5">
@@ -39,10 +39,10 @@ export function SearchInput({
           <button
             type="button"
             onClick={onClear}
-            className="text-charcoal-400 hover:text-charcoal p-0.5 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30"
+            className="text-charcoal-400 hover:text-charcoal p-1 rounded-md hover:bg-ivory-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta/30"
             aria-label="Clear search"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         ) : shortcutHint ? (
           <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-charcoal-400 bg-ivory-200 border border-border rounded select-none">

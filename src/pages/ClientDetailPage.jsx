@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -12,32 +12,44 @@ import {
   ChevronRight,
   Plus,
   Edit2,
+  Trash2,
   Clock,
   CheckCircle2,
   IndianRupee,
   CalendarDays,
   FileText,
+  Image as ImageIcon,
+  Sparkles,
+  ExternalLink,
 } from 'lucide-react';
 import { useStudioData } from '../context/StudioDataContext';
+import { useToast } from '../context/ToastContext';
 import { Breadcrumbs } from '../components/layout/Breadcrumbs';
-import { Card, CardHeader, CardContent } from '../components/common/Card';
+import { Card, CardHeader, CardContent, MetricCard } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Avatar } from '../components/common/Avatar';
 import { Button } from '../components/common/Button';
+import { Tabs } from '../components/common/Tabs';
 import { EmptyState } from '../components/common/EmptyState';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { ClientModal } from '../components/modals/ClientModal';
 import { EventModal } from '../components/modals/EventModal';
+import { ProofingReviewModal } from '../components/modals/ProofingReviewModal';
 import { formatCurrency, formatDate, formatRelativeTime } from '../utils/formatters';
 
 export function ClientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const {
     getClient,
     getEventsByClient,
     getProjectsByClient,
     getPaymentsByClient,
     getClientFinancials,
+    deleteClient,
+    createProjectForEvent,
+    deliverables,
     activityLog,
   } = useStudioData();
 
@@ -48,11 +60,21 @@ export function ClientDetailPage() {
   const financials = id ? getClientFinancials(id) : null;
 
   // Active tab state
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'events' | 'projects' | 'payments'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'events' | 'projects' | 'deliverables' | 'payments'
 
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [activeProofingDeliv, setActiveProofingDeliv] = useState(null);
+
+  // Deliverables linked to this client's projects or events
+  const clientDeliverables = useMemo(() => {
+    if (!client) return [];
+    const projIds = new Set(clientProjects.map((p) => p.id));
+    const evtIds = new Set(clientEvents.map((e) => e.id));
+    return deliverables.filter((d) => projIds.has(d.projectId) || evtIds.has(d.eventId));
+  }, [deliverables, clientProjects, clientEvents, client]);
 
   if (!client) {
     return (
@@ -71,6 +93,31 @@ export function ClientDetailPage() {
       </div>
     );
   }
+
+  const handleDeleteClient = () => {
+    if (clientEvents.length > 0) {
+      toast.error('Deletion Blocked', `Cannot delete client with ${clientEvents.length} active event bookings.`);
+      setIsDeleteConfirmOpen(false);
+      return;
+    }
+    try {
+      deleteClient(client.id);
+      toast.success('Client Removed', `Deleted profile for ${client.name}`);
+      navigate('/clients');
+    } catch (err) {
+      toast.error('Deletion Failed', err.message);
+    }
+  };
+
+  const handleCreateWorkspace = (eventId) => {
+    try {
+      const proj = createProjectForEvent(eventId);
+      toast.success('Workspace Created', 'Generated project workspace for event');
+      navigate(`/projects/${proj.id}`);
+    } catch (err) {
+      toast.error('Creation Failed', err.message);
+    }
+  };
 
   // Filter client-specific activities
   const clientActivities = activityLog.filter(
@@ -98,6 +145,15 @@ export function ClientDetailPage() {
           >
             Book New Event
           </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            className="bg-rose/10 hover:bg-rose/20 text-rose border border-rose/20"
+            leftIcon={<Trash2 className="w-4 h-4" />}
+            onClick={() => setIsDeleteConfirmOpen(true)}
+          >
+            Delete
+          </Button>
         </div>
       </div>
 
@@ -124,15 +180,23 @@ export function ClientDetailPage() {
                 </span>
               )}
               {client.email && (
-                <span className="flex items-center gap-1.5">
+                <a
+                  href={`mailto:${client.email}`}
+                  className="flex items-center gap-1.5 hover:text-terracotta hover:underline transition-colors"
+                >
                   <Mail className="w-3.5 h-3.5 text-charcoal-400 shrink-0" />
                   <span className="truncate">{client.email}</span>
-                </span>
+                </a>
               )}
-              <span className="flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-charcoal-400 shrink-0" />
-                <span>{client.phone}</span>
-              </span>
+              {client.phone && (
+                <a
+                  href={`tel:${client.phone}`}
+                  className="flex items-center gap-1.5 hover:text-terracotta hover:underline transition-colors"
+                >
+                  <Phone className="w-3.5 h-3.5 text-charcoal-400 shrink-0" />
+                  <span>{client.phone}</span>
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -161,26 +225,18 @@ export function ClientDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border overflow-x-auto whitespace-nowrap">
-        {[
+      <Tabs
+        tabs={[
           { key: 'overview', label: 'Overview' },
-          { key: 'events', label: `Booked Events (${clientEvents.length})` },
-          { key: 'projects', label: `Projects (${clientProjects.length})` },
-          { key: 'payments', label: `Invoices & Payments (${clientPayments.length})` },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`pb-3 px-3 text-sm font-medium transition-colors border-b-2 -mb-[2px] ${
-              activeTab === tab.key
-                ? 'border-terracotta text-terracotta font-semibold'
-                : 'border-transparent text-charcoal-500 hover:text-charcoal'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+          { key: 'events', label: 'Booked Events', count: clientEvents.length },
+          { key: 'projects', label: 'Projects', count: clientProjects.length },
+          { key: 'deliverables', label: 'Deliverables & Proofs', count: clientDeliverables.length },
+          { key: 'payments', label: 'Invoices & Payments', count: clientPayments.length },
+        ]}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        variant="underline"
+      />
 
       {/* Tab: Overview */}
       {activeTab === 'overview' && (
@@ -221,6 +277,10 @@ export function ClientDetailPage() {
                   <span className="font-semibold text-charcoal">{clientProjects.length}</span>
                 </div>
                 <div className="py-2 flex justify-between">
+                  <span>Deliverables & Proofs</span>
+                  <span className="font-semibold text-charcoal">{clientDeliverables.length}</span>
+                </div>
+                <div className="py-2 flex justify-between">
                   <span>Settlement Status</span>
                   <span className={`font-semibold ${financials.outstandingBalance === 0 ? 'text-sage' : 'text-amber-dark'}`}>
                     {financials.outstandingBalance === 0 ? 'Settled in full' : `${formatCurrency(financials.outstandingBalance)} due`}
@@ -229,6 +289,67 @@ export function ClientDetailPage() {
               </div>
             </Card>
           </div>
+
+          {/* Deliverables & Proofs Quick Summary */}
+          {clientDeliverables.length > 0 && (
+            <Card>
+              <CardHeader
+                title="Active Proofing & Album Collections"
+                subtitle="Review client feedback status and approval sign-offs"
+                action={
+                  <Button size="xs" variant="ghost" onClick={() => setActiveTab('deliverables')} rightIcon={<ChevronRight className="w-3.5 h-3.5" />}>
+                    View All ({clientDeliverables.length})
+                  </Button>
+                }
+              />
+              <div className="divide-y divide-border/60">
+                {clientDeliverables.slice(0, 3).map((deliv) => {
+                  const total = deliv.totalPhotos || (deliv.items ? deliv.items.length : 0);
+                  const approved = deliv.approvedPhotos || (deliv.items ? deliv.items.filter((i) => i.status === 'Approved').length : 0);
+                  const rejected = deliv.rejectedPhotos || (deliv.items ? deliv.items.filter((i) => i.status === 'Revision Requested').length : 0);
+                  return (
+                    <div key={deliv.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-ivory-50/70">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-charcoal">{deliv.title}</h4>
+                          <Badge
+                            size="xs"
+                            variant={
+                              deliv.clientApprovalStatus === 'Approved'
+                                ? 'sage'
+                                : deliv.clientApprovalStatus === 'Revisions Requested'
+                                ? 'rose'
+                                : 'amber'
+                            }
+                          >
+                            {deliv.clientApprovalStatus}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-charcoal-400 mt-0.5">
+                          Stage: {deliv.deliveryStage} &bull; Deadline: {formatDate(deliv.deadline)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-charcoal-500">
+                          <span className="text-sage font-semibold">{approved}</span> approved,{' '}
+                          <span className="text-rose font-semibold">{rejected}</span> revisions / {total} photos
+                        </span>
+                        <Button
+                          size="xs"
+                          variant="primary"
+                          leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+                          onClick={() => setActiveProofingDeliv(deliv)}
+                        >
+                          Review Proofs
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
 
           {/* Linked Events Snapshot */}
           <Card>
@@ -300,29 +421,67 @@ export function ClientDetailPage() {
               No events booked for this client.
             </div>
           ) : (
-            clientEvents.map((evt) => (
-              <div
-                key={evt.id}
-                onClick={() => navigate(`/events/${evt.id}`)}
-                className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-ivory-50/70 cursor-pointer"
-              >
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="terracotta" size="sm">{evt.eventType}</Badge>
-                    <Badge size="sm">{evt.status}</Badge>
+            clientEvents.map((evt) => {
+              const linkedProj = clientProjects.find((p) => p.eventId === evt.id);
+              return (
+                <div
+                  key={evt.id}
+                  className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-ivory-50/70"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="terracotta" size="sm">{evt.eventType}</Badge>
+                      <Badge size="sm">{evt.status}</Badge>
+                      {linkedProj && (
+                        <Badge size="xs" variant="sage">
+                          Workspace: {linkedProj.status}
+                        </Badge>
+                      )}
+                    </div>
+                    <h4
+                      onClick={() => navigate(`/events/${evt.id}`)}
+                      className="text-base font-semibold text-charcoal hover:text-terracotta cursor-pointer"
+                    >
+                      {evt.title}
+                    </h4>
+                    <p className="text-xs text-charcoal-500 mt-1">{evt.venue} • {formatDate(evt.startDate)}</p>
+                    {evt.description && <p className="text-xs text-charcoal-600 mt-1">{evt.description}</p>}
                   </div>
-                  <h4 className="text-base font-semibold text-charcoal hover:text-terracotta">{evt.title}</h4>
-                  <p className="text-xs text-charcoal-500 mt-1">{evt.venue} • {formatDate(evt.startDate)}</p>
-                  {evt.description && <p className="text-xs text-charcoal-600 mt-1">{evt.description}</p>}
+
+                  <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                    <span className="text-base font-bold text-charcoal block">{formatCurrency(evt.packageValue)}</span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() => navigate(`/events/${evt.id}`)}
+                      >
+                        Event Details
+                      </Button>
+                      {linkedProj ? (
+                        <Button
+                          size="xs"
+                          variant="primary"
+                          leftIcon={<FolderKanban className="w-3.5 h-3.5" />}
+                          onClick={() => navigate(`/projects/${linkedProj.id}`)}
+                        >
+                          Open Workspace
+                        </Button>
+                      ) : (
+                        <Button
+                          size="xs"
+                          variant="primary"
+                          leftIcon={<Plus className="w-3.5 h-3.5" />}
+                          onClick={() => handleCreateWorkspace(evt.id)}
+                        >
+                          Create Workspace
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-base font-bold text-charcoal block">{formatCurrency(evt.packageValue)}</span>
-                  <Link to={`/events/${evt.id}`} className="text-xs text-terracotta font-medium hover:underline mt-1 inline-block">
-                    View Event Workspace →
-                  </Link>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </Card>
       )}
@@ -363,6 +522,91 @@ export function ClientDetailPage() {
             ))
           )}
         </div>
+      )}
+
+      {/* Tab: Deliverables & Proofs */}
+      {activeTab === 'deliverables' && (
+        <Card className="divide-y divide-border/60">
+          <CardHeader
+            title="Deliverables & Proofing Hub"
+            subtitle={`All preview albums, digital galleries, and retouching batches for ${client.name}`}
+            action={
+              <Link to="/deliverables">
+                <Button size="sm" variant="outline" rightIcon={<ExternalLink className="w-3.5 h-3.5" />}>
+                  Proofing Hub
+                </Button>
+              </Link>
+            }
+          />
+          {clientDeliverables.length === 0 ? (
+            <div className="p-8 text-center text-sm text-charcoal-500">
+              <ImageIcon className="w-10 h-10 text-charcoal-300 mx-auto mb-2" />
+              <h4 className="font-semibold text-charcoal font-serif">No Deliverables Published</h4>
+              <p className="text-xs text-charcoal-400 mt-1">
+                Deliverables created in this client's project workspaces will appear here for review.
+              </p>
+            </div>
+          ) : (
+            clientDeliverables.map((deliv) => {
+              const total = deliv.totalPhotos || (deliv.items ? deliv.items.length : 0);
+              const approved = deliv.approvedPhotos || (deliv.items ? deliv.items.filter((i) => i.status === 'Approved').length : 0);
+              const rejected = deliv.rejectedPhotos || (deliv.items ? deliv.items.filter((i) => i.status === 'Revision Requested').length : 0);
+              const pending = deliv.pendingPhotos !== undefined ? deliv.pendingPhotos : Math.max(0, total - approved - rejected);
+              const percent = total > 0 ? Math.round((approved / total) * 100) : 0;
+
+              return (
+                <div key={deliv.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-ivory-50/60">
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-base font-bold text-charcoal font-serif">{deliv.title}</h4>
+                      <Badge
+                        size="sm"
+                        variant={
+                          deliv.clientApprovalStatus === 'Approved'
+                            ? 'sage'
+                            : deliv.clientApprovalStatus === 'Revisions Requested'
+                            ? 'rose'
+                            : 'amber'
+                        }
+                      >
+                        {deliv.clientApprovalStatus}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-charcoal-500">
+                      Type: <span className="font-medium text-charcoal">{deliv.deliverableType}</span> &bull; Stage: <span className="font-medium text-charcoal">{deliv.deliveryStage}</span> &bull; Due: {formatDate(deliv.deadline)}
+                    </p>
+                    <div className="flex items-center gap-3 text-xs text-charcoal-600 pt-1">
+                      <span>Total: <strong>{total}</strong></span>
+                      <span className="text-sage">Approved: <strong>{approved}</strong></span>
+                      <span className="text-amber">Pending: <strong>{pending}</strong></span>
+                      <span className="text-rose">Revisions: <strong>{rejected}</strong></span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+                      onClick={() => setActiveProofingDeliv(deliv)}
+                    >
+                      Review Proofs
+                    </Button>
+                    {deliv.projectId && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/projects/${deliv.projectId}`)}
+                      >
+                        Workspace
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </Card>
       )}
 
       {/* Tab: Payments */}
@@ -432,6 +676,27 @@ export function ClientDetailPage() {
         onClose={() => setIsEventModalOpen(false)}
         preselectedClientId={client.id}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteClient}
+        title={`Delete Profile for ${client.name}?`}
+        message={`Are you sure you want to permanently delete this client record? This action cannot be undone.`}
+        confirmLabel="Delete Client"
+        cancelLabel="Cancel"
+        isDestructive={true}
+      />
+
+      {/* Proofing Interactive Review Modal */}
+      {activeProofingDeliv && (
+        <ProofingReviewModal
+          isOpen={Boolean(activeProofingDeliv)}
+          onClose={() => setActiveProofingDeliv(null)}
+          deliverable={deliverables.find((d) => d.id === activeProofingDeliv.id) || activeProofingDeliv}
+        />
+      )}
     </div>
   );
 }

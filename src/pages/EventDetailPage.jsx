@@ -397,7 +397,7 @@ export function EventDetailPage() {
               </div>
             ) : (
               <div className="py-2 text-xs text-charcoal-500">
-                No production workspace has been created for this event yet. Create a workspace to track culling, color grading, and client proof approvals.
+                No production workspace has been created for this event yet. Create a workspace to track culling, color grading, and final deliverables.
               </div>
             )}
           </div>

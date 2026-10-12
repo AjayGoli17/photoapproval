@@ -18,9 +18,7 @@ import {
   IndianRupee,
   CalendarDays,
   FileText,
-  Image as ImageIcon,
-  Sparkles,
-  ExternalLink,
+  Package,
 } from 'lucide-react';
 import { useStudioData } from '../context/StudioDataContext';
 import { useToast } from '../context/ToastContext';
@@ -34,7 +32,6 @@ import { EmptyState } from '../components/common/EmptyState';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { ClientModal } from '../components/modals/ClientModal';
 import { EventModal } from '../components/modals/EventModal';
-import { ProofingReviewModal } from '../components/modals/ProofingReviewModal';
 import { formatCurrency, formatDate, formatRelativeTime } from '../utils/formatters';
 
 export function ClientDetailPage() {
@@ -66,7 +63,6 @@ export function ClientDetailPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [activeProofingDeliv, setActiveProofingDeliv] = useState(null);
 
   // Deliverables linked to this client's projects or events
   const clientDeliverables = useMemo(() => {
@@ -230,7 +226,7 @@ export function ClientDetailPage() {
           { key: 'overview', label: 'Overview' },
           { key: 'events', label: 'Booked Events', count: clientEvents.length },
           { key: 'projects', label: 'Projects', count: clientProjects.length },
-          { key: 'deliverables', label: 'Deliverables & Proofs', count: clientDeliverables.length },
+          { key: 'deliverables', label: 'Deliverables', count: clientDeliverables.length },
           { key: 'payments', label: 'Invoices & Payments', count: clientPayments.length },
         ]}
         activeTab={activeTab}
@@ -277,7 +273,7 @@ export function ClientDetailPage() {
                   <span className="font-semibold text-charcoal">{clientProjects.length}</span>
                 </div>
                 <div className="py-2 flex justify-between">
-                  <span>Deliverables & Proofs</span>
+                  <span>Deliverables</span>
                   <span className="font-semibold text-charcoal">{clientDeliverables.length}</span>
                 </div>
                 <div className="py-2 flex justify-between">
@@ -290,12 +286,12 @@ export function ClientDetailPage() {
             </Card>
           </div>
 
-          {/* Deliverables & Proofs Quick Summary */}
+          {/* Deliverables Quick Summary */}
           {clientDeliverables.length > 0 && (
             <Card>
               <CardHeader
-                title="Active Proofing & Album Collections"
-                subtitle="Review client feedback status and approval sign-offs"
+                title="Client Deliverables"
+                subtitle="Production deliverables and handover status"
                 action={
                   <Button size="xs" variant="ghost" onClick={() => setActiveTab('deliverables')} rightIcon={<ChevronRight className="w-3.5 h-3.5" />}>
                     View All ({clientDeliverables.length})
@@ -304,9 +300,6 @@ export function ClientDetailPage() {
               />
               <div className="divide-y divide-border/60">
                 {clientDeliverables.slice(0, 3).map((deliv) => {
-                  const total = deliv.totalPhotos || (deliv.items ? deliv.items.length : 0);
-                  const approved = deliv.approvedPhotos || (deliv.items ? deliv.items.filter((i) => i.status === 'Approved').length : 0);
-                  const rejected = deliv.rejectedPhotos || (deliv.items ? deliv.items.filter((i) => i.status === 'Revision Requested').length : 0);
                   return (
                     <div key={deliv.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-ivory-50/70">
                       <div>
@@ -315,33 +308,29 @@ export function ClientDetailPage() {
                           <Badge
                             size="xs"
                             variant={
-                              deliv.clientApprovalStatus === 'Approved'
+                              deliv.deliveryStage === 'Delivered'
                                 ? 'sage'
-                                : deliv.clientApprovalStatus === 'Revisions Requested'
-                                ? 'rose'
-                                : 'amber'
+                                : deliv.deliveryStage === 'Ready for Delivery'
+                                ? 'amber'
+                                : 'default'
                             }
                           >
-                            {deliv.clientApprovalStatus}
+                            {deliv.deliveryStage}
                           </Badge>
                         </div>
                         <p className="text-xs text-charcoal-400 mt-0.5">
-                          Stage: {deliv.deliveryStage} &bull; Deadline: {formatDate(deliv.deadline)}
+                          Type: {deliv.deliverableType} &bull; Deadline: {formatDate(deliv.deadline)}
                         </p>
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-charcoal-500">
-                          <span className="text-sage font-semibold">{approved}</span> approved,{' '}
-                          <span className="text-rose font-semibold">{rejected}</span> revisions / {total} photos
-                        </span>
                         <Button
                           size="xs"
-                          variant="primary"
-                          leftIcon={<Sparkles className="w-3.5 h-3.5" />}
-                          onClick={() => setActiveProofingDeliv(deliv)}
+                          variant="ghost"
+                          onClick={() => setActiveTab('deliverables')}
+                          rightIcon={<ChevronRight className="w-3 h-3" />}
                         >
-                          Review Proofs
+                          Details
                         </Button>
                       </div>
                     </div>
@@ -524,36 +513,23 @@ export function ClientDetailPage() {
         </div>
       )}
 
-      {/* Tab: Deliverables & Proofs */}
+      {/* Tab: Deliverables */}
       {activeTab === 'deliverables' && (
         <Card className="divide-y divide-border/60">
           <CardHeader
-            title="Deliverables & Proofing Hub"
-            subtitle={`All preview albums, digital galleries, and retouching batches for ${client.name}`}
-            action={
-              <Link to="/deliverables">
-                <Button size="sm" variant="outline" rightIcon={<ExternalLink className="w-3.5 h-3.5" />}>
-                  Proofing Hub
-                </Button>
-              </Link>
-            }
+            title="Client Deliverables"
+            subtitle={`All deliverables and digital handovers for ${client.name}`}
           />
           {clientDeliverables.length === 0 ? (
             <div className="p-8 text-center text-sm text-charcoal-500">
-              <ImageIcon className="w-10 h-10 text-charcoal-300 mx-auto mb-2" />
-              <h4 className="font-semibold text-charcoal font-serif">No Deliverables Published</h4>
+              <Package className="w-10 h-10 text-charcoal-300 mx-auto mb-2" />
+              <h4 className="font-semibold text-charcoal font-serif">No Deliverables Recorded</h4>
               <p className="text-xs text-charcoal-400 mt-1">
-                Deliverables created in this client's project workspaces will appear here for review.
+                Deliverables created in this client's project workspaces will appear here.
               </p>
             </div>
           ) : (
             clientDeliverables.map((deliv) => {
-              const total = deliv.totalPhotos || (deliv.items ? deliv.items.length : 0);
-              const approved = deliv.approvedPhotos || (deliv.items ? deliv.items.filter((i) => i.status === 'Approved').length : 0);
-              const rejected = deliv.rejectedPhotos || (deliv.items ? deliv.items.filter((i) => i.status === 'Revision Requested').length : 0);
-              const pending = deliv.pendingPhotos !== undefined ? deliv.pendingPhotos : Math.max(0, total - approved - rejected);
-              const percent = total > 0 ? Math.round((approved / total) * 100) : 0;
-
               return (
                 <div key={deliv.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-ivory-50/60">
                   <div className="space-y-1.5 min-w-0">
@@ -562,36 +538,27 @@ export function ClientDetailPage() {
                       <Badge
                         size="sm"
                         variant={
-                          deliv.clientApprovalStatus === 'Approved'
+                          deliv.deliveryStage === 'Delivered'
                             ? 'sage'
-                            : deliv.clientApprovalStatus === 'Revisions Requested'
-                            ? 'rose'
-                            : 'amber'
+                            : deliv.deliveryStage === 'Ready for Delivery'
+                            ? 'amber'
+                            : 'default'
                         }
                       >
-                        {deliv.clientApprovalStatus}
+                        {deliv.deliveryStage}
                       </Badge>
                     </div>
                     <p className="text-xs text-charcoal-500">
-                      Type: <span className="font-medium text-charcoal">{deliv.deliverableType}</span> &bull; Stage: <span className="font-medium text-charcoal">{deliv.deliveryStage}</span> &bull; Due: {formatDate(deliv.deadline)}
+                      Type: <span className="font-medium text-charcoal">{deliv.deliverableType}</span> &bull; Due: {formatDate(deliv.deadline)}
                     </p>
-                    <div className="flex items-center gap-3 text-xs text-charcoal-600 pt-1">
-                      <span>Total: <strong>{total}</strong></span>
-                      <span className="text-sage">Approved: <strong>{approved}</strong></span>
-                      <span className="text-amber">Pending: <strong>{pending}</strong></span>
-                      <span className="text-rose">Revisions: <strong>{rejected}</strong></span>
-                    </div>
+                    {deliv.description && (
+                      <p className="text-xs text-charcoal-600 pt-1 leading-relaxed">
+                        {deliv.description}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      leftIcon={<Sparkles className="w-3.5 h-3.5" />}
-                      onClick={() => setActiveProofingDeliv(deliv)}
-                    >
-                      Review Proofs
-                    </Button>
                     {deliv.projectId && (
                       <Button
                         size="sm"
@@ -688,15 +655,6 @@ export function ClientDetailPage() {
         cancelLabel="Cancel"
         isDestructive={true}
       />
-
-      {/* Proofing Interactive Review Modal */}
-      {activeProofingDeliv && (
-        <ProofingReviewModal
-          isOpen={Boolean(activeProofingDeliv)}
-          onClose={() => setActiveProofingDeliv(null)}
-          deliverable={deliverables.find((d) => d.id === activeProofingDeliv.id) || activeProofingDeliv}
-        />
-      )}
     </div>
   );
 }

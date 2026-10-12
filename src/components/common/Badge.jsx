@@ -36,13 +36,13 @@ export function Badge({
   let resolvedVariant = variant;
   if (variant === 'default' && typeof children === 'string') {
     const statusLower = children.toLowerCase();
-    if (['active', 'confirmed', 'paid', 'approved', 'completed', 'settled', 'delivered'].includes(statusLower)) {
+    if (['active', 'confirmed', 'paid', 'completed', 'settled', 'delivered'].includes(statusLower)) {
       resolvedVariant = 'sage';
     } else if (['in progress', 'editing', 'shooting', 'culling', 'in production'].includes(statusLower)) {
       resolvedVariant = 'terracotta';
-    } else if (['pending', 'planning', 'in review', 'pending review', 'partially approved', 'draft', 'inquiry'].includes(statusLower)) {
+    } else if (['pending', 'planning', 'ready for delivery', 'draft', 'inquiry'].includes(statusLower)) {
       resolvedVariant = 'amber';
-    } else if (['overdue', 'cancelled', 'rejected', 'revisions requested', 'urgent', 'unpaid'].includes(statusLower)) {
+    } else if (['overdue', 'cancelled', 'urgent', 'unpaid'].includes(statusLower)) {
       resolvedVariant = 'rose';
     } else if (['archived', 'closed'].includes(statusLower)) {
       resolvedVariant = 'charcoal';

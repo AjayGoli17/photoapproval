@@ -60,7 +60,7 @@ export function ReportsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Studio Performance & Analytics"
-        subtitle="Real-time financial revenues, shoot conversions, deliverable proof signoffs, and darkroom task velocities."
+        subtitle="Real-time financial revenues, shoot conversions, deliverable pipelines, and darkroom task velocities."
         badge={<Badge variant="terracotta">{dateRangeLabel}</Badge>}
         actions={
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 bg-surface p-1 rounded-xl border border-border">
@@ -148,13 +148,13 @@ export function ReportsPage() {
         </Card>
 
         <Card className="p-4 bg-surface">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-rose block">
-            Proofs in Review
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-amber block">
+            Pending Deliveries
           </span>
-          <div className="text-xl sm:text-2xl font-bold text-rose-dark mt-1.5 font-serif">
-            {report.deliverablesAwaitingApproval}
+          <div className="text-xl sm:text-2xl font-bold text-amber mt-1.5 font-serif">
+            {report.pendingDeliveries}
           </div>
-          <span className="text-[11px] text-rose-dark mt-1 block">Pending client signoff</span>
+          <span className="text-[11px] text-charcoal-500 mt-1 block">In production pipeline</span>
         </Card>
 
         <Card className="p-4 bg-surface">
@@ -394,23 +394,23 @@ export function ReportsPage() {
           </div>
         </Card>
 
-        {/* Chart 6: Deliverables & Approval Pipeline */}
+        {/* Chart 6: Deliverables Pipeline */}
         <Card className="p-5 space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-charcoal font-serif">6. Deliverables & Proofing Pipeline</h3>
-              <p className="text-xs text-charcoal-400">Proof packages by client review & signoff status</p>
+              <h3 className="text-sm font-bold text-charcoal font-serif">6. Deliverables Pipeline</h3>
+              <p className="text-xs text-charcoal-400">Packages by current delivery stage</p>
             </div>
-            <Badge variant="terracotta" size="xs">Proof Signoffs</Badge>
+            <Badge variant="terracotta" size="xs">Delivery Stages</Badge>
           </div>
           <div className="h-64 w-full pt-2 min-w-0 overflow-hidden">
-            {report.approvalPipeline.length === 0 ? (
+            {report.deliveryPipeline.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-charcoal-400 italic">
                 No deliverables in this timeframe.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={report.approvalPipeline} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                <BarChart data={report.deliveryPipeline} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E6E2DA" vertical={false} />
                   <XAxis dataKey="name" stroke="#7B7873" fontSize={10} tickLine={false} angle={-15} textAnchor="end" />
                   <YAxis stroke="#7B7873" fontSize={11} tickLine={false} allowDecimals={false} />

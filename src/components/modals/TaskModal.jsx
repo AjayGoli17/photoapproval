@@ -144,7 +144,7 @@ export function TaskModal({ isOpen, onClose, task = null, defaultProjectId = nul
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormField label="Task Title" required error={errors.title}>
           <FormInput
-            placeholder="e.g. Color grade 150 raw proofs"
+            placeholder="e.g. Color grade 150 raw photos"
             value={formData.title}
             onChange={(e) => {
               setFormData((prev) => ({ ...prev, title: e.target.value }));

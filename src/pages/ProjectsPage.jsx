@@ -151,7 +151,7 @@ export function ProjectsPage() {
         <MetricCard
           label="Client Review"
           value={reviewCount}
-          subtitle="Awaiting client sign-off"
+          subtitle="Final delivery review"
           icon={Sparkles}
         />
         <MetricCard

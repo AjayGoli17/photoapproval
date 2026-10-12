@@ -131,7 +131,7 @@ export function CalendarPage() {
           title: `Delivery: ${p.title}`,
           dateStr: p.deliveryDeadline ? p.deliveryDeadline.split('T')[0] : '',
           time: 'End of Day',
-          venue: 'Proofing Gallery',
+          venue: 'Digital Delivery',
           projectName: p.title,
           clientName: client?.name,
           status: p.status,
@@ -192,7 +192,7 @@ export function CalendarPage() {
     <div className="space-y-6">
       <PageHeader
         title="Production Calendar & Scheduling"
-        subtitle="Track shooting itineraries, client proofing delivery deadlines, and daily darkroom tasks."
+        subtitle="Track shooting itineraries, client delivery deadlines, and daily darkroom tasks."
         badge={<Badge variant="terracotta">{allCalendarItems.length} Scheduled Items</Badge>}
         actions={
           <div className="flex items-center gap-2">

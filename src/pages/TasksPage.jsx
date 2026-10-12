@@ -142,7 +142,7 @@ export function TasksPage() {
     <div className="space-y-6">
       <PageHeader
         title="Studio Task Board"
-        subtitle="Coordinate darkroom processing, color grading batches, culling, and client proof deliverables."
+        subtitle="Coordinate darkroom processing, color grading batches, culling, and client deliverables."
         badge={<Badge variant="terracotta">{tasks.length} Total Tasks</Badge>}
         actions={
           <div className="flex items-center gap-2 flex-wrap">

@@ -121,22 +121,8 @@ export function loadStoredData() {
       parsed.projectNotes = JSON.parse(JSON.stringify(INITIAL_PROJECT_NOTES));
     }
 
-    // Ensure deliverables items array is populated
-    if (Array.isArray(parsed.deliverables)) {
-      parsed.deliverables = parsed.deliverables.map((deliv) => {
-        const seedMatch = INITIAL_DELIVERABLES.find((d) => d.id === deliv.id);
-        if (!Array.isArray(deliv.items) || deliv.items.length === 0) {
-          if (seedMatch && Array.isArray(seedMatch.items)) {
-            return {
-              ...seedMatch,
-              ...deliv,
-              items: JSON.parse(JSON.stringify(seedMatch.items)),
-            };
-          }
-        }
-        return deliv;
-      });
-    } else {
+    // Ensure deliverables is populated
+    if (!Array.isArray(parsed.deliverables)) {
       parsed.deliverables = JSON.parse(JSON.stringify(INITIAL_DELIVERABLES));
     }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Calendar, Link as LinkIcon, FileText } from 'lucide-react';
+import { Package, Calendar, FileText } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { FormField, FormInput, FormSelect, FormTextarea } from '../common/FormField';
@@ -7,18 +7,18 @@ import { useStudioData } from '../../context/StudioDataContext';
 import { useToast } from '../../context/ToastContext';
 
 const DELIVERABLE_TYPES = [
-  'Preview Gallery',
-  'Edited Proofs',
-  'Wedding Album Layout',
-  'Print Master TIFFs',
   'High-Res Digital Delivery',
+  'Print Master TIFFs',
+  'Digital Master Files',
+  'Physical Album',
+  'Highlight Slideshow',
 ];
 
 const DELIVERY_STAGES = [
-  'Culling',
-  'First Proofs',
-  'Client Selection',
-  'Final Handover',
+  'Draft',
+  'In Progress',
+  'Ready for Delivery',
+  'Delivered',
 ];
 
 export function DeliverableModal({ isOpen, onClose, defaultProjectId = null, deliverable = null, onSaved = null }) {
@@ -30,11 +30,10 @@ export function DeliverableModal({ isOpen, onClose, defaultProjectId = null, del
   const [formData, setFormData] = useState({
     title: '',
     projectId: defaultProjectId || projects[0]?.id || '',
-    deliverableType: 'Preview Gallery',
-    deliveryStage: 'Client Selection',
+    deliverableType: 'High-Res Digital Delivery',
+    deliveryStage: 'In Progress',
     description: '',
     deadline: new Date().toISOString().split('T')[0],
-    shareLink: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -46,22 +45,20 @@ export function DeliverableModal({ isOpen, onClose, defaultProjectId = null, del
         setFormData({
           title: deliverable.title || '',
           projectId: deliverable.projectId || defaultProjectId || '',
-          deliverableType: deliverable.deliverableType || 'Preview Gallery',
-          deliveryStage: deliverable.deliveryStage || 'Client Selection',
+          deliverableType: deliverable.deliverableType || 'High-Res Digital Delivery',
+          deliveryStage: deliverable.deliveryStage || 'In Progress',
           description: deliverable.description || '',
           deadline: deliverable.deadline ? deliverable.deadline.split('T')[0] : new Date().toISOString().split('T')[0],
-          shareLink: deliverable.shareLink || '',
         });
       } else {
         const proj = projects.find((p) => p.id === (defaultProjectId || projects[0]?.id));
         setFormData({
-          title: proj ? `${proj.title} Proof Gallery` : '',
+          title: proj ? `${proj.title} Digital Masters` : '',
           projectId: defaultProjectId || projects[0]?.id || '',
-          deliverableType: 'Preview Gallery',
-          deliveryStage: 'Client Selection',
-          description: 'Master photo collection for client proof review.',
+          deliverableType: 'High-Res Digital Delivery',
+          deliveryStage: 'In Progress',
+          description: 'Master photo collection and final deliverables.',
           deadline: new Date().toISOString().split('T')[0],
-          shareLink: `https://studioflow.gallery/proofs/${Date.now()}`,
         });
       }
       setErrors({});
@@ -92,7 +89,6 @@ export function DeliverableModal({ isOpen, onClose, defaultProjectId = null, del
         deliveryStage: formData.deliveryStage,
         description: formData.description.trim(),
         deadline: formData.deadline,
-        shareLink: formData.shareLink || `https://studioflow.gallery/proofs/${Date.now()}`,
       };
 
       if (isEditing) {
@@ -116,14 +112,14 @@ export function DeliverableModal({ isOpen, onClose, defaultProjectId = null, del
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditing ? 'Edit Deliverable Package' : 'Publish Deliverable Collection'}
-      subtitle="Configure client proofing albums, print masters, or social highlight galleries"
+      title={isEditing ? 'Edit Deliverable Package' : 'Create Deliverable'}
+      subtitle="Configure deliverable packages, digital masters, and handover dates"
       maxWidth="max-w-lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <FormField label="Collection Title" required error={errors.title}>
+        <FormField label="Deliverable Title" required error={errors.title}>
           <FormInput
-            placeholder="e.g. Udaipur Sangeet 150 Photo Proof Gallery"
+            placeholder="e.g. Udaipur Reception High-Res Digital Delivery"
             value={formData.title}
             onChange={(e) => {
               setFormData((prev) => ({ ...prev, title: e.target.value }));
@@ -177,28 +173,18 @@ export function DeliverableModal({ isOpen, onClose, defaultProjectId = null, del
           </FormField>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <FormField label="Signoff Deadline" required error={errors.deadline}>
-            <FormInput
-              type="date"
-              value={formData.deadline}
-              onChange={(e) => setFormData((prev) => ({ ...prev, deadline: e.target.value }))}
-              error={!!errors.deadline}
-            />
-          </FormField>
+        <FormField label="Target Delivery Date" required error={errors.deadline}>
+          <FormInput
+            type="date"
+            value={formData.deadline}
+            onChange={(e) => setFormData((prev) => ({ ...prev, deadline: e.target.value }))}
+            error={!!errors.deadline}
+          />
+        </FormField>
 
-          <FormField label="Client Portal Proofing URL">
-            <FormInput
-              placeholder="https://studioflow.gallery/proofs/..."
-              value={formData.shareLink}
-              onChange={(e) => setFormData((prev) => ({ ...prev, shareLink: e.target.value }))}
-            />
-          </FormField>
-        </div>
-
-        <FormField label="Description & Client Notes">
+        <FormField label="Description & Handover Notes">
           <FormTextarea
-            placeholder="Add handover notes, proof selection limits, or format details..."
+            placeholder="Add handover notes, file format specifications, or packaging details..."
             value={formData.description}
             onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
             rows={3}

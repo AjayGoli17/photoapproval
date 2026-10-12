@@ -6,7 +6,7 @@ import {
   Clock,
   CheckSquare,
   Users,
-  Image as ImageIcon,
+  Package,
   ChevronRight,
   Plus,
   Edit2,
@@ -20,8 +20,6 @@ import {
   Milestone,
   ArrowRight,
   ExternalLink,
-  Sparkles,
-  Eye,
 } from 'lucide-react';
 import { useStudioData } from '../context/StudioDataContext';
 import { useToast } from '../context/ToastContext';
@@ -38,7 +36,6 @@ import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { TaskModal } from '../components/modals/TaskModal';
 import { ProjectModal } from '../components/modals/ProjectModal';
 import { ProjectNoteModal } from '../components/modals/ProjectNoteModal';
-import { ProofingReviewModal } from '../components/modals/ProofingReviewModal';
 import { DeliverableModal } from '../components/modals/DeliverableModal';
 import { RecordPaymentModal } from '../components/modals/RecordPaymentModal';
 import { formatDate, formatCurrency } from '../utils/formatters';
@@ -94,7 +91,6 @@ export function ProjectDetailPage() {
   const [noteToDelete, setNoteToDelete] = useState(null);
 
   // Deliverables & Payments modals
-  const [activeProofingDeliv, setActiveProofingDeliv] = useState(null);
   const [isDeliverableModalOpen, setIsDeliverableModalOpen] = useState(false);
   const [editingDeliverable, setEditingDeliverable] = useState(null);
   const [isDeleteProjectDeliverablesOpen, setIsDeleteProjectDeliverablesOpen] = useState(false);
@@ -285,17 +281,6 @@ export function ProjectDetailPage() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {projectDeliverable && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="bg-terracotta hover:bg-terracotta-hover text-white shadow-2xs"
-                  leftIcon={<Sparkles className="w-3.5 h-3.5" />}
-                  onClick={() => setActiveProofingDeliv(projectDeliverable)}
-                >
-                  Review Proofs
-                </Button>
-              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -341,26 +326,6 @@ export function ProjectDetailPage() {
       {/* Tab 1: Overview */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Urgent Revision Alert Banner */}
-          {projectDeliverable && projectDeliverable.clientApprovalStatus === 'Revisions Requested' && (
-            <Alert
-              variant="danger"
-              title="Client Revisions Pending Review"
-              message={`The client requested changes on ${projectDeliverable.rejectedPhotos || 1} photographs in "${projectDeliverable.title}". Please review their feedback notes.`}
-              action={
-                <Button
-                  size="xs"
-                  variant="primary"
-                  className="bg-rose hover:bg-rose-dark text-white"
-                  leftIcon={<Sparkles className="w-3.5 h-3.5" />}
-                  onClick={() => setActiveProofingDeliv(projectDeliverable)}
-                >
-                  Review Proof Revisions
-                </Button>
-              }
-            />
-          )}
-
           {/* Summary Metric Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MetricCard
@@ -370,10 +335,10 @@ export function ProjectDetailPage() {
               icon={CheckSquare}
             />
             <MetricCard
-              label="Deliverable Status"
-              value={projectDeliverable ? (projectDeliverable.clientApprovalStatus || projectDeliverable.status) : 'Not Started'}
-              subtitle={projectDeliverable ? `${projectDeliverable.approvedPhotos}/${projectDeliverable.totalPhotos} photos approved` : 'No deliverables'}
-              icon={ImageIcon}
+              label="Delivery Status"
+              value={projectDeliverable ? projectDeliverable.deliveryStage : (project.status === 'Completed' ? 'Delivered' : 'In Progress')}
+              subtitle={`Target: ${formatDate(project.deliveryDeadline)}`}
+              icon={Package}
             />
             <MetricCard
               label="Crew Assigned"
@@ -413,7 +378,7 @@ export function ProjectDetailPage() {
                   </div>
 
                   <div className="p-3.5 bg-ivory-50 rounded-xl border border-border/80">
-                    <span className="text-charcoal-400 text-[11px] block">Final Proofs Deadline</span>
+                    <span className="text-charcoal-400 text-[11px] block">Final Delivery Deadline</span>
                     <span className="font-semibold text-terracotta text-sm mt-0.5 block">{formatDate(project.deliveryDeadline)}</span>
                   </div>
                 </div>
@@ -798,7 +763,7 @@ export function ProjectDetailPage() {
               <div className="text-xs font-semibold text-charcoal uppercase tracking-wider">
                 Final Client Delivery Deadline
               </div>
-              <h4 className="text-sm font-bold text-charcoal mt-0.5">Handover & Proof Gallery Release</h4>
+              <h4 className="text-sm font-bold text-charcoal mt-0.5">Handover & Digital Master Release</h4>
               <p className="text-xs text-charcoal-500 mt-1">
                 Target Handover Date: {formatDate(project.deliveryDeadline)}
               </p>
@@ -957,14 +922,14 @@ export function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Tab 6: Deliverables & Client Proofs */}
+      {/* Tab 6: Deliverables */}
       {activeTab === 'deliverables' && (
         <Card className="p-6 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border">
             <div>
-              <h3 className="text-base font-semibold text-charcoal font-serif">Client Proofs & Collections</h3>
+              <h3 className="text-base font-semibold text-charcoal font-serif">Project Deliverables</h3>
               <p className="text-xs text-charcoal-500 mt-0.5">
-                Manage preview galleries, edited photographs, album drafts, and final digital handovers.
+                Manage final deliverables, print master files, and client handovers.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -987,22 +952,17 @@ export function ProjectDetailPage() {
                   setIsDeliverableModalOpen(true);
                 }}
               >
-                Publish Deliverable
+                Add Deliverable
               </Button>
-              <Link to="/deliverables">
-                <Button size="sm" variant="outline" rightIcon={<ExternalLink className="w-3.5 h-3.5" />}>
-                  Proofing Hub
-                </Button>
-              </Link>
             </div>
           </div>
 
-          {deliverables.filter((d) => d.projectId === project.id).length === 0 ? (
+          {projectDeliverables.length === 0 ? (
             <div className="p-8 text-center bg-ivory-50 rounded-xl border border-dashed border-border">
-              <ImageIcon className="w-10 h-10 text-charcoal-300 mx-auto mb-2" />
-              <h4 className="text-sm font-semibold text-charcoal font-serif">No Deliverables Published</h4>
+              <Package className="w-10 h-10 text-charcoal-300 mx-auto mb-2" />
+              <h4 className="text-sm font-semibold text-charcoal font-serif">No Deliverables Created</h4>
               <p className="text-xs text-charcoal-400 mt-1 max-w-sm mx-auto">
-                Publish a client preview gallery, high-res edited files, or wedding album layout to start collecting feedback.
+                Add high-res digital masters, albums, or print files for this workspace.
               </p>
               <div className="mt-3">
                 <Button
@@ -1012,113 +972,58 @@ export function ProjectDetailPage() {
                     setIsDeliverableModalOpen(true);
                   }}
                 >
-                  Publish First Collection
+                  Add First Deliverable
                 </Button>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              {deliverables
-                .filter((d) => d.projectId === project.id)
-                .map((deliv) => {
-                  const total = deliv.totalPhotos || (deliv.items ? deliv.items.length : 0);
-                  const approved = deliv.approvedPhotos || (deliv.items ? deliv.items.filter((i) => i.status === 'Approved').length : 0);
-                  const rejected = deliv.rejectedPhotos || (deliv.items ? deliv.items.filter((i) => i.status === 'Revision Requested').length : 0);
-                  const pending = deliv.pendingPhotos !== undefined ? deliv.pendingPhotos : Math.max(0, total - approved - rejected);
-                  const percent = total > 0 ? Math.round((approved / total) * 100) : 0;
-
-                  return (
-                    <div key={deliv.id} className="p-4 bg-ivory-50 rounded-xl border border-border space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-bold text-charcoal font-serif">{deliv.title}</h4>
-                            <Badge
-                              size="xs"
-                              variant={
-                                deliv.clientApprovalStatus === 'Approved'
-                                  ? 'sage'
-                                  : deliv.clientApprovalStatus === 'Revisions Requested'
-                                  ? 'rose'
-                                  : 'amber'
-                              }
-                            >
-                              {deliv.clientApprovalStatus}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-charcoal-500 mt-0.5">
-                            Type: {deliv.deliverableType} &bull; Stage: <span className="font-semibold">{deliv.deliveryStage}</span> &bull; Due: {formatDate(deliv.deadline)}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Link
-                            to={`/proofs/${deliv.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 text-charcoal-400 hover:text-terracotta rounded transition-colors"
-                            title="Open Client Review Portal"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </Link>
-                          <Button
-                            size="xs"
-                            variant="primary"
-                            className="bg-terracotta hover:bg-terracotta-hover"
-                            leftIcon={<Sparkles className="w-3.5 h-3.5" />}
-                            onClick={() => setActiveProofingDeliv(deliv)}
-                          >
-                            Review Proofs
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingDeliverable(deliv);
-                              setIsDeliverableModalOpen(true);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Photo Counters */}
-                      <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                        <div className="p-2 bg-surface rounded-lg border border-border">
-                          <span className="text-[10px] text-charcoal-400 block uppercase">Total</span>
-                          <span className="text-sm font-bold text-charcoal font-serif">{total}</span>
-                        </div>
-                        <div className="p-2 bg-surface rounded-lg border border-border">
-                          <span className="text-[10px] text-sage block uppercase">Approved</span>
-                          <span className="text-sm font-bold text-sage font-serif">{approved}</span>
-                        </div>
-                        <div className="p-2 bg-surface rounded-lg border border-border">
-                          <span className="text-[10px] text-amber block uppercase">Pending</span>
-                          <span className="text-sm font-bold text-amber font-serif">{pending}</span>
-                        </div>
-                        <div className="p-2 bg-surface rounded-lg border border-border">
-                          <span className="text-[10px] text-rose block uppercase">Revisions</span>
-                          <span className="text-sm font-bold text-rose-dark font-serif">{rejected}</span>
-                        </div>
-                      </div>
-
-                      {/* Progress Bar */}
+              {projectDeliverables.map((deliv) => {
+                return (
+                  <div key={deliv.id} className="p-4 bg-ivory-50 rounded-xl border border-border space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
-                        <div className="flex justify-between text-[11px] text-charcoal-500 mb-1">
-                          <span>Approval Signoff</span>
-                          <span className="font-semibold text-charcoal">{percent}%</span>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-charcoal font-serif">{deliv.title}</h4>
+                          <Badge
+                            size="xs"
+                            variant={
+                              deliv.deliveryStage === 'Delivered'
+                                ? 'sage'
+                                : deliv.deliveryStage === 'Ready for Delivery'
+                                ? 'amber'
+                                : 'default'
+                            }
+                          >
+                            {deliv.deliveryStage}
+                          </Badge>
                         </div>
-                        <div className="w-full h-1.5 bg-ivory-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-sage rounded-full"
-                            style={{ width: `${percent}%` }}
-                          />
-                        </div>
+                        <p className="text-xs text-charcoal-500 mt-0.5">
+                          Type: {deliv.deliverableType} &bull; Due: {formatDate(deliv.deadline)}
+                        </p>
+                        {deliv.description && (
+                          <p className="text-xs text-charcoal-600 mt-1 leading-relaxed">
+                            {deliv.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingDeliverable(deliv);
+                            setIsDeliverableModalOpen(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
             </div>
           )}
         </Card>
@@ -1253,15 +1158,6 @@ export function ProjectDetailPage() {
         note={editingNote}
       />
 
-      {/* Proofing Interactive Review Modal */}
-      {activeProofingDeliv && (
-        <ProofingReviewModal
-          isOpen={Boolean(activeProofingDeliv)}
-          onClose={() => setActiveProofingDeliv(null)}
-          deliverable={deliverables.find((d) => d.id === activeProofingDeliv.id) || activeProofingDeliv}
-        />
-      )}
-
       {/* Deliverable Creation / Edit Modal */}
       <DeliverableModal
         isOpen={isDeliverableModalOpen}
@@ -1322,11 +1218,10 @@ export function ProjectDetailPage() {
           const count = projectDeliverables.length;
           deleteDeliverablesForProject(project.id);
           setIsDeleteProjectDeliverablesOpen(false);
-          setActiveProofingDeliv(null);
           toast.success('Deliverables Cleared', `Successfully deleted all ${count} deliverables for this workspace.`);
         }}
         title={`Delete All Deliverables for "${project?.title || 'Project'}"?`}
-        message={`Are you sure you want to delete all ${projectDeliverables.length} client deliverables and proofs for this workspace? This action cannot be undone.`}
+        message={`Are you sure you want to delete all ${projectDeliverables.length} client deliverables for this workspace? This action cannot be undone.`}
         confirmLabel={`Delete All (${projectDeliverables.length})`}
         isDestructive={true}
       />

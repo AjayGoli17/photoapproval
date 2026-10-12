@@ -122,7 +122,6 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
     if (path === '/calendar') return 'Studio Production Calendar';
     if (path === '/team') return 'Studio Creative Team';
     if (path.startsWith('/invoices/')) return 'Invoice Details';
-    if (path === '/deliverables') return 'Deliverables & Client Approvals';
     if (path === '/payments') return 'Payments & Invoicing';
     if (path === '/reports') return 'Studio Performance & Revenue';
     if (path === '/settings') return 'Studio Preferences';
@@ -411,7 +410,7 @@ export function Header({ onOpenMobileNav, onOpenSearch }) {
         onConfirm={handleResetData}
         isLoading={isResetting}
         title="Reset Demo Data?"
-        message="This will reset all clients, events, projects, tasks, deliverables, and payments back to their original seeded sample state in your browser's localStorage."
+        message="This will reset all clients, events, projects, tasks, and payments back to their original seeded sample state in your browser's localStorage."
         confirmLabel="Reset to Seed Data"
         cancelLabel="Cancel"
         isDestructive={true}

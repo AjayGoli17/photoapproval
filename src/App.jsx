@@ -16,12 +16,10 @@ import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { TasksPage } from './pages/TasksPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { TeamPage } from './pages/TeamPage';
-import { DeliverablesPage } from './pages/DeliverablesPage';
 import { PaymentsPage } from './pages/PaymentsPage';
 import { InvoiceDetailPage } from './pages/InvoiceDetailPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { ClientProofingPage } from './pages/ClientProofingPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export default function App() {
@@ -31,10 +29,6 @@ export default function App() {
         <ErrorBoundary>
           <BrowserRouter>
             <Routes>
-              {/* Standalone Client-Facing Review Portal (No studio sidebar) */}
-              <Route path="proofs/:id" element={<ClientProofingPage />} />
-              <Route path="review/:id" element={<ClientProofingPage />} />
-
               {/* Studio Workspace Application (With AppLayout sidebar & topbar) */}
               <Route path="/" element={<AppLayout />}>
                 {/* Default redirect to /dashboard */}
@@ -56,7 +50,6 @@ export default function App() {
 
                 {/* Studio Operations routes */}
                 <Route path="team" element={<TeamPage />} />
-                <Route path="deliverables" element={<DeliverablesPage />} />
                 <Route path="payments" element={<PaymentsPage />} />
                 <Route path="invoices/:id" element={<InvoiceDetailPage />} />
                 <Route path="reports" element={<ReportsPage />} />

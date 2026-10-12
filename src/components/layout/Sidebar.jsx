@@ -32,7 +32,6 @@ const WORKSPACE_NAV = [
 
 const OPERATIONS_NAV = [
   { name: 'Team', path: '/team', icon: UserCheck },
-  { name: 'Deliverables & Approvals', path: '/deliverables', icon: CheckCircle2 },
   { name: 'Payments & Invoices', path: '/payments', icon: Receipt },
   { name: 'Reports', path: '/reports', icon: BarChart3 },
   { name: 'Settings', path: '/settings', icon: Settings },

@@ -17,11 +17,6 @@ import {
   MapPin,
   CheckCircle2,
   FileText,
-  RotateCcw,
-  Eye,
-  ArrowUpRight,
-  User,
-  ExternalLink,
 } from 'lucide-react';
 import { useStudioData } from '../context/StudioDataContext';
 import { Card, CardHeader, CardContent, MetricCard } from '../components/common/Card';
@@ -41,7 +36,6 @@ export function DashboardPage() {
     projects,
     events,
     tasks,
-    deliverables = [],
     activityLog = [],
     clients = [],
     team = [],
@@ -64,22 +58,6 @@ export function DashboardPage() {
   // =========================================================
   // 1. ACTION REQUIRED CALCULATIONS (High Priority Operational Items)
   // =========================================================
-
-  // Albums/Deliverables requiring revision work
-  const revisionDeliverables = useMemo(() => {
-    return deliverables.filter((d) => d.clientApprovalStatus === 'Revisions Requested');
-  }, [deliverables]);
-
-  // Albums/Deliverables pending client approval
-  const pendingDeliverables = useMemo(() => {
-    return deliverables.filter(
-      (d) =>
-        d.clientApprovalStatus === 'Pending' ||
-        d.clientApprovalStatus === 'In Review' ||
-        d.clientApprovalStatus === 'Pending Review' ||
-        d.clientApprovalStatus === 'Partially Approved'
-    );
-  }, [deliverables]);
 
   // Pending tasks split by urgency
   const pendingTasks = useMemo(() => {
@@ -104,8 +82,7 @@ export function DashboardPage() {
   }, [pendingTasks, todayStr]);
 
   // Total urgent count
-  const totalUrgentCount =
-    revisionDeliverables.length + overdueTasks.length + dueTodayTasks.length;
+  const totalUrgentCount = overdueTasks.length + dueTodayTasks.length;
 
   // =========================================================
   // 2. UPCOMING SHOOTS & EVENTS (Chronological next 4)
@@ -127,23 +104,16 @@ export function DashboardPage() {
         const progress = getProjectProgress ? getProjectProgress(p.id) : p.progressPercent || 0;
         const client = clients.find((c) => c.id === p.clientId);
         const event = events.find((e) => e.id === p.eventId);
-        const projectDeliverables = deliverables.filter((d) => d.projectId === p.id);
-        const hasRevisions = projectDeliverables.some((d) => d.clientApprovalStatus === 'Revisions Requested');
-        const isPendingApproval = projectDeliverables.some(
-          (d) => d.clientApprovalStatus === 'In Review' || d.clientApprovalStatus === 'Pending'
-        );
 
         return {
           ...p,
           progress,
           clientName: client?.name || 'Unassigned Client',
           eventName: event?.title || null,
-          hasRevisions,
-          isPendingApproval,
         };
       })
       .slice(0, 3);
-  }, [projects, getProjectProgress, clients, events, deliverables]);
+  }, [projects, getProjectProgress, clients, events]);
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
@@ -160,14 +130,14 @@ export function DashboardPage() {
           </h1>
 
           <p className="text-xs sm:text-sm text-charcoal-600 mt-1.5 sm:mt-2 leading-relaxed">
-            Managing fine-art wedding commissions, editorial lookbooks, and client proof approvals.{' '}
+            Managing fine-art wedding commissions, editorial lookbooks, and studio productions.{' '}
             {totalUrgentCount > 0 ? (
               <span className="font-semibold text-rose">
                 {totalUrgentCount} operational item{totalUrgentCount > 1 ? 's' : ''} require immediate attention.
               </span>
             ) : (
               <span className="font-semibold text-sage-dark">
-                All client album proofings and darkroom queues are currently on schedule.
+                All darkroom queues and studio tasks are currently on schedule.
               </span>
             )}
           </p>
@@ -223,50 +193,6 @@ export function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-            {/* 1A: Revision Requests from Clients */}
-            {revisionDeliverables.map((deliv) => {
-              const project = projects.find((p) => p.id === deliv.projectId);
-              const client = project ? clients.find((c) => c.id === project.clientId) : null;
-              return (
-                <div
-                  key={deliv.id}
-                  className="p-4 rounded-xl border border-rose-border bg-rose-light/40 flex flex-col justify-between gap-3 shadow-subtle hover:border-rose transition-colors"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-rose">
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        Client Revision Requested
-                      </span>
-                      <Badge variant="rose" size="sm">
-                        {deliv.rejectedPhotos || 1} Photo(s) Flagged
-                      </Badge>
-                    </div>
-
-                    <h3 className="text-sm font-semibold text-charcoal line-clamp-1 mt-1">
-                      {deliv.title}
-                    </h3>
-                    <p className="text-xs text-charcoal-600 line-clamp-2">
-                      {client?.name ? `Client: ${client.name}` : deliv.description || 'Client has requested edits on photo spreads.'}
-                    </p>
-                  </div>
-
-                  <div className="pt-2 border-t border-rose-border/60 flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-charcoal-500">
-                      Target: {formatDate(deliv.deadline)}
-                    </span>
-                    <Button
-                      size="xs"
-                      variant="destructive"
-                      onClick={() => navigate('/deliverables')}
-                      rightIcon={<ChevronRight className="w-3 h-3" />}
-                    >
-                      Review Edits
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
 
             {/* 1B: Overdue Tasks */}
             {overdueTasks.slice(0, 2).map((t) => {
@@ -385,12 +311,12 @@ export function DashboardPage() {
           onClick={() => navigate('/events')}
         />
         <MetricCard
-          title="Proofs in Pipeline"
-          value={deliverables.length}
-          subtitle={`${pendingDeliverables.length} in client review`}
-          icon={Eye}
+          title="Active Clients"
+          value={clients.length}
+          subtitle="Client accounts on record"
+          icon={Users}
           variant="terracotta"
-          onClick={() => navigate('/deliverables')}
+          onClick={() => navigate('/clients')}
         />
         <MetricCard
           title="Tasks Outstanding"
@@ -536,7 +462,7 @@ export function DashboardPage() {
                   Workspaces in Digital Darkroom
                 </h2>
                 <p className="text-xs text-charcoal-500 mt-0.5">
-                  Post-production culling, color grading, retouches, and client album proofs
+                  Post-production culling, color grading, and final retouches
                 </p>
               </div>
               <Link
@@ -565,13 +491,6 @@ export function DashboardPage() {
                             {p.status}
                           </Badge>
                         </div>
-                        {p.hasRevisions && (
-                          <div className="absolute bottom-2 left-2">
-                            <span className="px-2 py-0.5 text-[10px] font-bold bg-rose text-white rounded-md shadow-xs flex items-center gap-1">
-                              <RotateCcw className="w-3 h-3" /> Revisions Needed
-                            </span>
-                          </div>
-                        )}
                       </div>
 
                       <h3 className="text-sm font-bold text-charcoal hover:text-terracotta transition-colors truncate">
@@ -600,78 +519,6 @@ export function DashboardPage() {
                 );
               })}
             </div>
-          </div>
-
-          {/* 3C: Deliverable & Album Proofing Pipeline */}
-          <div>
-            <div className="flex items-center justify-between mb-3.5">
-              <div>
-                <h2 className="text-base sm:text-lg font-bold text-charcoal tracking-tight">
-                  Album Proofs & Deliverables Pipeline
-                </h2>
-                <p className="text-xs text-charcoal-500 mt-0.5">
-                  Review cycles, pending approvals, and completed handovers
-                </p>
-              </div>
-              <Link
-                to="/deliverables"
-                className="text-xs font-semibold text-terracotta hover:text-terracotta-hover flex items-center gap-1 group"
-              >
-                <span>All Deliverables</span>
-                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-            </div>
-
-            <Card className="divide-y divide-border/60 overflow-hidden">
-              {deliverables.length === 0 ? (
-                <div className="p-6 text-center text-xs text-charcoal-500">
-                  No deliverables in production pipeline.
-                </div>
-              ) : (
-                deliverables.slice(0, 3).map((d) => {
-                  const project = projects.find((p) => p.id === d.projectId);
-                  return (
-                    <div
-                      key={d.id}
-                      onClick={() => navigate('/deliverables')}
-                      className="p-4 hover:bg-ivory-50/70 transition-colors cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-charcoal hover:text-terracotta transition-colors truncate">
-                            {d.title}
-                          </span>
-                          <Badge
-                            size="sm"
-                            variant={
-                              d.clientApprovalStatus === 'Approved'
-                                ? 'sage'
-                                : d.clientApprovalStatus === 'Revisions Requested'
-                                ? 'rose'
-                                : 'amber'
-                            }
-                          >
-                            {d.clientApprovalStatus}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-charcoal-500 truncate">
-                          Workspace: {project?.title || 'Standalone Production'} &bull; {d.totalPhotos || 0} Photos
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-3 shrink-0 self-start sm:self-auto">
-                        <span className="text-xs text-charcoal-500 font-medium">
-                          Due {formatDate(d.deadline)}
-                        </span>
-                        <Button size="xs" variant="outline" rightIcon={<ChevronRight className="w-3 h-3" />}>
-                          View Proofs
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </Card>
           </div>
         </div>
 

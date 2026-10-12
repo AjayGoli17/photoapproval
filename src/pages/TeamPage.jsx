@@ -59,14 +59,72 @@ export function TeamPage() {
   const [reassigningTask, setReassigningTask] = useState(null);
   const [targetMemberId, setTargetMemberId] = useState('');
 
-  const getCapacityBadge = (inProgressCount) => {
-    if (inProgressCount >= 4) {
-      return <Badge variant="destructive" size="xs">Heavy Load</Badge>;
+  const getWorkloadSummaryBadge = (workload) => {
+    const { totalTasks, inProgressTasks, overdueTasks } = workload;
+    if (totalTasks === 0) {
+      return <Badge variant="default" size="xs">0 Tasks Assigned</Badge>;
     }
-    if (inProgressCount >= 2) {
-      return <Badge variant="amber" size="xs">Balanced</Badge>;
+    if (overdueTasks > 0) {
+      return (
+        <Badge variant="rose" size="xs">
+          {totalTasks} {totalTasks === 1 ? 'Task' : 'Tasks'} ({overdueTasks} Overdue)
+        </Badge>
+      );
     }
-    return <Badge variant="sage" size="xs">Light Load</Badge>;
+    if (inProgressTasks > 0) {
+      return (
+        <Badge variant="terracotta" size="xs">
+          {totalTasks} {totalTasks === 1 ? 'Task' : 'Tasks'} ({inProgressTasks} In Progress)
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="default" size="xs">
+        {totalTasks} {totalTasks === 1 ? 'Task Assigned' : 'Tasks Assigned'}
+      </Badge>
+    );
+  };
+
+  const getAvailabilityBadge = (member) => {
+    if (member.availability) {
+      const availLower = member.availability.toLowerCase();
+      let variant = 'sage';
+      if (availLower.includes('leave') || availLower.includes('away') || availLower.includes('off')) {
+        variant = 'amber';
+      } else if (availLower.includes('busy') || availLower.includes('unavailable')) {
+        variant = 'rose';
+      }
+      return (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <Badge size="xs" variant={variant}>
+            {member.availability}
+          </Badge>
+        </div>
+      );
+    }
+
+    if (member.status === 'On Leave') {
+      return (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <Badge size="xs" variant="amber">
+            On Leave
+          </Badge>
+        </div>
+      );
+    }
+
+    if (member.status === 'Contractor') {
+      return (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <Badge size="xs" variant="default">
+            Contractor
+          </Badge>
+        </div>
+      );
+    }
+
+    // Do not show misleading "Active" badge when member has no explicit availability data
+    return null;
   };
 
   const handleDeleteClick = (member) => {
@@ -109,7 +167,7 @@ export function TeamPage() {
       <PageHeader
         title="Studio Creative Team & Crew"
         subtitle="Manage lead photographers, retouchers, colorists, workload distribution, and task assignments."
-        badge={<Badge variant="sage">{team.length} Active Artists</Badge>}
+        badge={<Badge variant="terracotta">{team.length} Team Members</Badge>}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             <Button
@@ -139,25 +197,22 @@ export function TeamPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {team.map((member) => {
           const workload = getTeamMemberWorkload(member.id);
-          const activeTasksCount = workload.inProgressTasks + workload.overdueTasks;
 
           return (
             <Card key={member.id} hover className="p-4 sm:p-6 flex flex-col justify-between space-y-4">
               <div>
-                {/* Header */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar src={member.avatar} name={member.name} size="xl" status={member.status} />
-                    <div>
-                      <h3 className="text-base font-bold text-charcoal font-serif">{member.name}</h3>
-                      <p className="text-xs font-medium text-terracotta">{member.role}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <Badge size="xs" variant={member.status === 'Active' ? 'sage' : 'default'}>
-                      {member.status}
-                    </Badge>
-                    {getCapacityBadge(workload.inProgressTasks)}
+                {/* Header: Avatar, Name, Role, and Availability on clean line beneath role */}
+                <div className="flex items-start gap-3.5">
+                  <Avatar src={member.avatar} name={member.name} size="xl" />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-base font-bold text-charcoal font-serif truncate" title={member.name}>
+                      {member.name}
+                    </h3>
+                    <p className="text-xs font-medium text-terracotta leading-snug">
+                      {member.role}
+                    </p>
+                    {/* Team-member availability on its own clean line beneath the role */}
+                    {getAvailabilityBadge(member)}
                   </div>
                 </div>
 
@@ -169,23 +224,32 @@ export function TeamPage() {
                   {member.specialty || 'General Studio Photography'}
                 </div>
 
-                {/* Workload Metric breakdown (Req 6) */}
-                <div className="mt-4 grid grid-cols-4 gap-1.5 bg-ivory-100/60 p-2.5 rounded-lg border border-border/80 text-center">
-                  <div>
-                    <span className="text-[10px] text-charcoal-400 block uppercase">Assigned</span>
-                    <span className="text-xs font-bold text-charcoal">{workload.totalTasks}</span>
+                {/* Workload Section with clear task-count summary badge and accurate metric breakdown */}
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-charcoal uppercase tracking-wider">
+                      Workload
+                    </span>
+                    {getWorkloadSummaryBadge(workload)}
                   </div>
-                  <div>
-                    <span className="text-[10px] text-terracotta block uppercase">Active</span>
-                    <span className="text-xs font-bold text-terracotta">{workload.inProgressTasks}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-red-500 block uppercase">Overdue</span>
-                    <span className="text-xs font-bold text-red-600">{workload.overdueTasks}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-sage block uppercase">Done</span>
-                    <span className="text-xs font-bold text-sage">{workload.completedTasks}</span>
+
+                  <div className="grid grid-cols-4 gap-1.5 bg-ivory-100/60 p-2.5 rounded-lg border border-border/80 text-center">
+                    <div>
+                      <span className="text-[10px] text-charcoal-400 block uppercase font-medium">Assigned</span>
+                      <span className="text-xs font-bold text-charcoal mt-0.5 block">{workload.totalTasks}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-terracotta block uppercase font-medium">In Progress</span>
+                      <span className="text-xs font-bold text-terracotta mt-0.5 block">{workload.inProgressTasks}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-red-500 block uppercase font-medium">Overdue</span>
+                      <span className="text-xs font-bold text-red-600 mt-0.5 block">{workload.overdueTasks}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-sage block uppercase font-medium">Completed</span>
+                      <span className="text-xs font-bold text-sage mt-0.5 block">{workload.completedTasks}</span>
+                    </div>
                   </div>
                 </div>
 

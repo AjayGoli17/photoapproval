@@ -69,7 +69,7 @@ export function SettingsPage() {
         <Card>
           <CardHeader
             title="Studio Profile & Branding"
-            subtitle="Public studio identity shown on client invoices, header desks, and proof galleries"
+            subtitle="Public studio identity shown on client invoices, header desks, and digital exports"
           />
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -144,8 +144,8 @@ export function SettingsPage() {
       {/* Cloud Storage Quota */}
       <Card>
         <CardHeader
-          title="RAW & Proof Cloud Storage"
-          subtitle="Archive capacity for TIFF masters, Sony ARW, and client WebP proofs"
+          title="Cloud Storage & Digital Archives"
+          subtitle="Archive capacity for TIFF masters, Sony ARW, and digital master exports"
           action={
             <Badge variant="sage" size="sm">
               {settings.storageQuotaUsedGB} GB / {settings.storageQuotaTotalGB} GB ({storagePercent}%)
@@ -157,7 +157,7 @@ export function SettingsPage() {
             <div className="h-full bg-terracotta rounded-full" style={{ width: `${storagePercent}%` }} />
           </div>
           <p className="text-xs text-charcoal-500 mt-2">
-            Storage allocated for client proofing galleries. Proof links automatically expire 90 days after delivery.
+            Storage allocated for client digital archives and master export repositories.
           </p>
         </CardContent>
       </Card>
